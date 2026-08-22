@@ -89,6 +89,15 @@ fi
 # 4. Python仮想環境の作成・依存パッケージインストール
 # ==========================================
 echo "==> Python仮想環境を作成します。"
+# venv/ ディレクトリが存在していても、python3-venv 未インストール等の
+# 原因で venv/bin/pip が無い「壊れたvenv」になっている場合があるため、
+# ディレクトリの有無だけでなく venv/bin/pip の存在も確認する。
+# 壊れていた場合は venv/ を削除してから作り直す。
+if [ -d "${INSTALL_DIR}/venv" ] && [ ! -x "${INSTALL_DIR}/venv/bin/pip" ]; then
+    echo "    既存のvenv/が壊れているため削除して再作成します。"
+    rm -rf "${INSTALL_DIR}/venv"
+fi
+
 if [ ! -d "${INSTALL_DIR}/venv" ]; then
     python3 -m venv "${INSTALL_DIR}/venv"
 fi
