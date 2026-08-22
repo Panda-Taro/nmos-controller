@@ -44,15 +44,19 @@ chmod +x deploy.sh
 3. `data/`, `logs/`, `sdp/` を作成
 4. `data/config.json` が無ければダミー値で新規作成(既存なら変更しない)
 5. Python仮想環境(`venv/`)を作成し `requirements.txt` をインストール
-6. `/etc/netplan/*.yaml` を検出し、netplan反映用ラッパースクリプト
+   (`venv/bin/pip` が無い壊れたvenvが残っている場合は削除して再作成)
+6. `/etc/netplan/*.yaml` を検出し、そのファイルを`sudo chmod o+r`で
+   読み取り可能にする(**sudoが必要**。検証環境向けの簡易対応。
+   後述「ネットワーク設定変更(netplan)の仕組み」参照)
+7. netplan反映用ラッパースクリプト
    (`/usr/local/bin/nmos-apply-netplan.sh`)を配置(**sudoが必要**)
-7. systemdユニットファイルの `{{ACCOUNT_NAME}}` を実行ユーザー名に
+8. systemdユニットファイルの `{{ACCOUNT_NAME}}` を実行ユーザー名に
    置換して `/etc/systemd/system/nmos-controller.service` に配置
    (**sudoが必要**)
-8. sudoers設定ファイルの `{{ACCOUNT_NAME}}` を実行ユーザー名に置換し、
+9. sudoers設定ファイルの `{{ACCOUNT_NAME}}` を実行ユーザー名に置換し、
    `visudo -c` で構文チェックの上 `/etc/sudoers.d/nmos-controller` に
    配置(**sudoが必要**)
-9. `systemctl daemon-reload && systemctl enable --now nmos-controller`
+10. `systemctl daemon-reload && systemctl enable --now nmos-controller`
 
 デプロイ完了後、**`data/config.json` の `rds.host` 等はダミー値のまま**
 なので、実環境の値に書き換えてください(次項参照)。
@@ -153,3 +157,12 @@ nmos-controller` が必要)。
 固定パスのnetplan設定へcpするだけの単純なスクリプトです。`sudoers`
 では、このスクリプト・`reboot`・`shutdown -h now` の3コマンドのみを
 個別にNOPASSWD許可しています(ワイルドカードや`ALL`は使用していません)。
+
+また、netplan設定ファイルは通常 `root:root` / `600`(root以外は
+読み取り不可)で生成されるため、非rootで動作する本サービスは現在の
+IP/GW表示(`GET /api/system/network`)すら読み取れません。**本システムは
+検証用途でセキュリティ要件が低いため**、`deploy.sh` が検出したnetplan
+ファイルに対して `sudo chmod o+r` を実行し、世界読み取り可能にする
+簡易対応をしています(書き込み権限は付与していません)。本番運用に
+転用する場合は、より権限を絞った方式(読み取り専用の別ファイルへの
+コピー配置など)への見直しを推奨します。
