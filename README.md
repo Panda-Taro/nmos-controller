@@ -134,7 +134,7 @@ nmos-controller` が必要)。
 | `server.host` | 本サービスのListenアドレス | `0.0.0.0`(固定でよい) |
 | `server.port` | 本サービスのListenポート | `80`(要件により固定) |
 | `log.directory` | ログ出力先 | `$HOME/nmos-controller/logs` |
-| `nmos_rds.registry_json_path` | RDS側`registry.json`のパス | `$HOME/nmos-rds/config/registry.json` |
+| `nmos_rds.registry_json_path` | RDS側`registry_config.json`のパス | `$HOME/nmos-rds/config/registry_config.json` |
 | `nmos_rds.compose_directory` | RDSのdocker-composeディレクトリ | `$HOME/nmos-rds` |
 | `sdp.directory` | アップロードされたSDPファイルの保存先 | `$HOME/nmos-controller/sdp` |
 

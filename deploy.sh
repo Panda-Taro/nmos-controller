@@ -73,7 +73,7 @@ else
         "directory": "${HOME}/nmos-controller/logs"
     },
     "nmos_rds": {
-        "registry_json_path": "${HOME}/nmos-rds/config/registry.json",
+        "registry_json_path": "${HOME}/nmos-rds/config/registry_config.json",
         "compose_directory": "${HOME}/nmos-rds"
     },
     "sdp": {
