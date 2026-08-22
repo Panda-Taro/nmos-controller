@@ -47,6 +47,8 @@ chmod +x deploy.sh
    (`venv/bin/pip` が無い壊れたvenvが残っている場合は削除して再作成)
 6. `/etc/netplan/*.yaml` を検出し、そのファイルを`sudo chmod o+r`で
    読み取り可能にする(**sudoが必要**。検証環境向けの簡易対応。
+   さらに `nmos_rds.registry_json_path` が指すファイルが存在すれば
+   `sudo chmod o+rw` で読み書き可能にする。
    後述「ネットワーク設定変更(netplan)の仕組み」参照)
 7. netplan反映用ラッパースクリプト
    (`/usr/local/bin/nmos-apply-netplan.sh`)を配置(**sudoが必要**)
@@ -166,3 +168,15 @@ IP/GW表示(`GET /api/system/network`)すら読み取れません。**本シス�
 簡易対応をしています(書き込み権限は付与していません)。本番運用に
 転用する場合は、より権限を絞った方式(読み取り専用の別ファイルへの
 コピー配置など)への見直しを推奨します。
+
+同様に、NMOS-RDS側の `nmos_rds.registry_json_path`
+(`registry_config.json`)もRDSのDockerコンテナ(root)が作成した
+root所有ファイルになっている場合があり、非rootの本サービスからは
+書き込めず「IPアドレス・ポート設定」保存時に`Permission denied`と
+なることがあります。**同じく検証用途向けの簡易対応として**、
+`deploy.sh` は `data/config.json` の `nmos_rds.registry_json_path` が
+指すファイルが存在する場合に限り `sudo chmod o+rw` で世界読み書き
+可能にします。NMOS-RDSが本サービスより後にデプロイされ、まだ
+`registry_config.json` が存在しない場合はこのステップはスキップ
+されるため、NMOS-RDSデプロイ後に手動で`chmod`するか、`deploy.sh`を
+再実行してください。

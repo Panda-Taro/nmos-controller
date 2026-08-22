@@ -128,6 +128,31 @@ fi
 echo "==> netplan設定ファイルを読み取り可能にします（検証環境向け簡易対応、sudoが必要です）。"
 sudo chmod o+r "${NETPLAN_PATH}"
 
+# NMOS-RDS側の registry_json_path (registry_config.json) も、
+# RDSのDockerコンテナ(root)が作成したroot所有ファイルになっている
+# ことがあり、非rootの本サービスから書き込めず「IPアドレス・ポート設定」
+# 保存時にPermission deniedになる。本システムは検証用途でセキュリティ
+# 要件が低いため、存在する場合のみ簡易対応として世界書き込み可能にする。
+# NMOS-RDSがまだデプロイされておらずファイルが存在しない場合はスキップする
+# （その場合はNMOS-RDSデプロイ後に手動で chmod するか、本スクリプトを
+#  再実行すること）。
+REGISTRY_JSON_PATH="$(python3 -c "
+import json
+try:
+    with open('${CONFIG_JSON}') as f:
+        print(json.load(f).get('nmos_rds', {}).get('registry_json_path', ''))
+except Exception:
+    pass
+" 2>/dev/null || true)"
+
+if [ -n "${REGISTRY_JSON_PATH}" ] && [ -f "${REGISTRY_JSON_PATH}" ]; then
+    echo "==> registry_config.json を書き込み可能にします（検証環境向け簡易対応、sudoが必要です）。"
+    sudo chmod o+rw "${REGISTRY_JSON_PATH}"
+else
+    echo "    registry_config.json (${REGISTRY_JSON_PATH:-未設定}) が見つからないためスキップします。"
+    echo "    NMOS-RDSデプロイ後に手動で chmod するか、本スクリプトを再実行してください。"
+fi
+
 # ==========================================
 # 6. nmos-apply-netplan.sh を /usr/local/bin/ に配置
 # ==========================================
