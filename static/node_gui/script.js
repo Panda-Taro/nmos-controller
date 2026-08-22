@@ -35,6 +35,23 @@ let formatFilter = {
 };
 
 // ==========================================
+// GUI①への「戻る」
+// ==========================================
+function goBackToGui1() {
+    // GUI①からwindow.open()で開かれたタブであれば、
+    // 元のGUI①タブをリロード・フォーカスしてから自タブを閉じる。
+    // openerが取得できない場合(直接URLを開いた場合等)は
+    // 自タブをGUI①へ遷移させる。
+    if (window.opener && !window.opener.closed) {
+        window.opener.location.reload();
+        window.opener.focus();
+        window.close();
+    } else {
+        location.href = '/';
+    }
+}
+
+// ==========================================
 // WebSocket接続
 // ==========================================
 function connectWebSocket() {

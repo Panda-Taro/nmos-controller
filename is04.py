@@ -226,54 +226,71 @@ async def connect_rds_websocket(
                     "取得できません"
                 )
 
-            first_ws_url = ws_urls[0][1]
             logger.info(
-                f"IS-04: WebSocket接続: "
-                f"{first_ws_url}"
+                f"IS-04: {len(ws_urls)}件の"
+                f"WebSocketに接続します"
             )
 
-            async with websockets.connect(
-                first_ws_url,
-                ping_interval=20,
-                ping_timeout=10
-            ) as ws:
-                logger.info(
-                    "IS-04: RDS WebSocket接続成功"
+            # 定期再取得タスクを並行実行
+            async def periodic_refresh():
+                while True:
+                    await asyncio.sleep(30)  # 10 → 30秒
+                    logger.info(
+                        "IS-04: 定期データ再取得..."
+                    )
+                    await fetch_nmos_data(
+                        rds_host, query_port)
+                    is04_status["last_updated"] = \
+                        datetime.now().isoformat()
+                    await broadcast_to_gui({
+                        "type": "nmos_data",
+                        "data": nmos_data
+                    })
+                    await notify_is05_nmos_updated()
+
+            refresh_task = asyncio.create_task(
+                periodic_refresh()
+            )
+
+            # ==========================================
+            # 6リソース分のWebSocketを全て並行して購読する
+            # （以前は ws_urls[0](nodes) のみに接続しており、
+            # senders等の削除イベントを取りこぼしていた）
+            # ==========================================
+            listen_tasks = [
+                asyncio.create_task(
+                    listen_to_subscription(
+                        resource, ws_url
+                    )
                 )
+                for resource, ws_url in ws_urls
+            ]
 
-                # 定期再取得タスクを並行実行
-                async def periodic_refresh():
-                    while True:
-                        await asyncio.sleep(30)  # 10 → 30秒
-                        logger.info(
-                            "IS-04: 定期データ再取得..."
-                        )
-                        await fetch_nmos_data(
-                            rds_host, query_port)
-                        is04_status["last_updated"] = \
-                            datetime.now().isoformat()
-                        await broadcast_to_gui({
-                            "type": "nmos_data",
-                            "data": nmos_data
-                        })
-                        await notify_is05_nmos_updated()
-
-                refresh_task = asyncio.create_task(
-                    periodic_refresh()
+            try:
+                # いずれか1本でも終了（切断/例外）したら
+                # 残りを打ち切り、全体を再接続する
+                done, pending = await asyncio.wait(
+                    listen_tasks,
+                    return_when=asyncio.FIRST_COMPLETED
                 )
-
-                try:
-                    async for message in ws:
-                        try:
-                            data = json.loads(message)
-                            await handle_ws_message(data)
-                        except Exception as e:
-                            logger.error(
-                                f"IS-04: WS処理エラー:"
-                                f" {e}"
-                            )
-                finally:
-                    refresh_task.cancel()
+                for task in pending:
+                    task.cancel()
+                for task in done:
+                    exc = task.exception()
+                    if exc:
+                        raise exc
+                raise ConnectionError(
+                    "IS-04 WebSocket接続が切断されました"
+                )
+            finally:
+                refresh_task.cancel()
+                for task in listen_tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(
+                    refresh_task, *listen_tasks,
+                    return_exceptions=True
+                )
 
         except Exception as e:
             is04_status["connected"]    = False
@@ -291,6 +308,35 @@ async def connect_rds_websocket(
             logger.info(
                 "IS-04: 5秒後に再接続します...")
             await asyncio.sleep(5)
+
+# ==========================================
+# 1リソースタイプ分のsubscription WebSocket購読
+# ==========================================
+async def listen_to_subscription(
+    resource: str, ws_url: str
+):
+    """
+    1リソースタイプ(nodes/devices/senders/receivers/
+    sources/flows)分のsubscription WebSocketに接続し、
+    切断されるまでメッセージを処理し続ける
+    """
+    async with websockets.connect(
+        ws_url,
+        ping_interval=20,
+        ping_timeout=10
+    ) as ws:
+        logger.info(
+            f"IS-04: {resource} WebSocket接続成功"
+        )
+        async for message in ws:
+            try:
+                data = json.loads(message)
+                await handle_ws_message(data)
+            except Exception as e:
+                logger.error(
+                    f"IS-04: {resource} "
+                    f"WS処理エラー: {e}"
+                )
 
 # ==========================================
 # IS-05へのイベント通知
