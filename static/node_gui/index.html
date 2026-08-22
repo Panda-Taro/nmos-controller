@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node GUI - NMOS Controller</title>
+    <link rel="stylesheet" href="/static/node_gui/style.css">
+</head>
+
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-left">
+            <span class="header-logo">⬡</span>
+            <span class="header-title">NMOS Node GUI</span>
+        </div>
+        <div class="header-center">
+            <div class="status-indicator" id="rds-status">
+                <span class="status-led" id="status-led"></span>
+                <span class="status-text" id="status-text">接続中...</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="btn-header" onclick="window.close()">
+                ✕ 閉じる
+            </button>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <div class="main-container">
+
+        <!-- 左ペイン：Nodes / Devices -->
+        <div class="left-pane">
+
+            <!-- Nodes -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Nodes</span>
+                    <span class="panel-count" id="node-count">0</span>
+                </div>
+                <div class="filter-bar">
+                    <input type="text" class="filter-input" id="filter-nodes" placeholder="Type to filter...">
+                </div>
+                <div class="panel-content" id="nodes-list"></div>
+            </div>
+
+            <!-- Devices -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Devices</span>
+                    <span class="panel-count" id="device-count">0</span>
+                </div>
+                <div class="filter-bar">
+                    <input type="text" class="filter-input" id="filter-devices" placeholder="Type to filter...">
+                </div>
+                <div class="panel-content" id="devices-list"></div>
+            </div>
+
+        </div>
+
+        <!-- 右ペイン：Senders / Receivers -->
+        <div class="right-pane">
+
+            <!-- Senders -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Senders</span>
+                    <span class="panel-count" id="sender-count">0</span>
+                </div>
+
+                <div class="filter-bar">
+                    <input type="text" class="filter-input" id="filter-senders" placeholder="Type to filter...">
+                    <div class="format-filter-bar">
+                        <button class="fmt-btn fmt-btn-v" id="fmt-s-video"
+                            onclick="toggleFormatFilter('senders','video')">V</button>
+                        <button class="fmt-btn fmt-btn-a" id="fmt-s-audio"
+                            onclick="toggleFormatFilter('senders','audio')">A</button>
+                        <button class="fmt-btn fmt-btn-anc" id="fmt-s-anc"
+                            onclick="toggleFormatFilter('senders','ancillary')">ANC</button>
+                        <button class="fmt-btn fmt-btn-all active" id="fmt-s-all"
+                            onclick="toggleAllFilter('senders')">ALL</button>
+                    </div>
+                </div>
+                <div class="panel-content" id="senders-list"></div>
+            </div>
+
+            <!-- Receivers -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Receivers</span>
+                    <span class="panel-count" id="receiver-count">0</span>
+                </div>
+                <div class="filter-bar">
+                    <input type="text" class="filter-input" id="filter-receivers" placeholder="Type to filter...">
+                    <div class="format-filter-bar">
+                        <button class="fmt-btn fmt-btn-v" id="fmt-r-video"
+                            onclick="toggleFormatFilter('receivers','video')">V</button>
+                        <button class="fmt-btn fmt-btn-a" id="fmt-r-audio"
+                            onclick="toggleFormatFilter('receivers','audio')">A</button>
+                        <button class="fmt-btn fmt-btn-anc" id="fmt-r-anc"
+                            onclick="toggleFormatFilter('receivers','ancillary')">ANC</button>
+                        <button class="fmt-btn fmt-btn-all active" id="fmt-r-all"
+                            onclick="toggleAllFilter('receivers')">ALL</button>
+                    </div>
+                </div>
+                <div class="panel-content" id="receivers-list"></div>
+            </div>
+
+        </div>
+
+        <!-- 下ペイン：通信ログ -->
+        <div class="bottom-pane">
+            <div class="log-header">
+                <span class="panel-title">Communication Log</span>
+                <div class="log-controls">
+                    <label class="log-toggle">
+                        <input type="checkbox" id="log-enabled" checked>
+                        Enable logging
+                    </label>
+                    <span class="log-maxlines">
+                        Max lines
+                        <input type="number" id="log-maxlines" value="100" min="10" max="1000">
+                    </span>
+                    <button class="btn-log" onclick="clearLog()">
+                        🗑 Clear
+                    </button>
+                </div>
+            </div>
+            <div class="log-content" id="log-content"></div>
+        </div>
+
+    </div>
+
+    <!-- 素材登録モーダル -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">
+                    素材として登録
+                </span>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>ラベル（表示名）</label>
+                    <input type="text" class="form-input" id="modal-label" placeholder="例: LV5600"
+                        oninput="clearRegisterError()">
+                </div>
+                <div class="modal-error" id="modal-error" style="display:none;color:#f44;font-size:12px;
+                    margin:-8px 0 12px 0;padding:6px 10px;
+                    background:rgba(255,68,68,0.1);
+                    border:1px solid rgba(255,68,68,0.3);
+                    border-radius:4px;line-height:1.5;">
+                </div>
+                <div class="form-group">
+                    <label>種別</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="modal-type" value="video" checked>
+                            <span class="radio-badge video">V</span>
+                            映像
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="modal-type" value="audio">
+                            <span class="radio-badge audio">A</span>
+                            音声
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="modal-type" value="ancillary">
+                            <span class="radio-badge ancillary">ANC</span>
+                            アンシラリ
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>リソース情報</label>
+                    <div class="resource-info" id="modal-resource-info">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+                <button class="btn-register" onclick="registerMaterial()">登録する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右クリックコンテキストメニュー -->
+    <div class="context-menu" id="context-menu">
+        <div class="context-item" onclick="contextShowSdp()">
+            📄 SDPを表示
+        </div>
+        <div class="context-item" onclick="contextCopySdp()">
+            📋 SDPをクリップボードにコピー
+        </div>
+        <div class="context-item" onclick="contextDownloadSdp()">
+            ⬇ SDPをダウンロード
+        </div>
+        <div class="context-separator"></div>
+        <div class="context-item" onclick="contextRegister()">
+            ➕ GUI①の素材として登録
+        </div>
+    </div>
+
+    <!-- SDPモーダル -->
+    <div class="modal-overlay" id="sdp-modal-overlay">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <span class="modal-title">SDP内容</span>
+                <button class="modal-close" onclick="closeSdpModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <pre class="sdp-content" id="sdp-content"></pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeSdpModal()">閉じる</button>
+                <button class="btn-register" onclick="contextCopySdp()">
+                    📋 コピー
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/node_gui/script.js"></script>
+</body>
+
+</html>

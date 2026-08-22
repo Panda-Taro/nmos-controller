@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width,
+                   initial-scale=1.0,
+                   user-scalable=no">
+    <title>オペレータGUI</title>
+    <link rel="stylesheet"
+          href="/static/gui2/style.css">
+</head>
+<body>
+
+    <!-- ヘッダー -->
+    <header class="g2-header">
+        <div class="g2-header-title"
+             id="g2-panel-name">
+            読み込み中...
+        </div>
+        <div class="g2-header-right">
+            <span class="g2-ws-led"
+                  id="g2-ws-led"></span>
+            <div class="g2-lock-wrap">
+                <div class="g2-lock-track"
+                     id="g2-lock-track">
+                    <div class="g2-lock-thumb"
+                         id="g2-lock-thumb">
+                        🔒
+                    </div>
+                    <span class="g2-lock-label"
+                          id="g2-lock-label">
+                        スライドでアンロック
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ロックオーバーレイ -->
+    <div class="g2-lock-overlay"
+         id="g2-lock-overlay">
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="g2-body">
+
+        <!-- DESTINATIONペイン（上） -->
+        <div class="g2-dest-pane"
+             id="g2-dest-pane">
+            <div class="g2-pane-header">
+                <span class="g2-pane-label">
+                    DESTINATION
+                </span>
+                <button class="g2-leave-btn disabled"
+                        id="g2-leave-btn"
+                        onclick="onLeave(event)">
+                    LEAVE
+                </button>
+            </div>
+            <div class="g2-dest-scroll">
+                <div class="g2-dest-list"
+                     id="g2-dest-list"
+                     onclick="onDestListClick(event)">
+                </div>
+            </div>
+        </div>
+
+        <!-- SOURCEペイン（下） -->
+        <div class="g2-source-pane"
+             id="g2-source-pane">
+            <div class="g2-pane-label">
+                SOURCE
+            </div>
+            <div class="g2-source-list"
+                 id="g2-source-list">
+            </div>
+        </div>
+
+    </div>
+
+    <!-- エラー表示 -->
+    <div class="g2-error"
+         id="g2-error"
+         style="display:none;">
+        <div class="g2-error-inner"
+             id="g2-error-msg">
+        </div>
+    </div>
+
+    <script src="/static/gui2/script.js">
+    </script>
+</body>
+</html>

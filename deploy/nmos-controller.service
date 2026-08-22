@@ -1,0 +1,26 @@
+[Unit]
+Description=NMOS Controller (IS-04/IS-05 WebGUI)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ACCOUNT_NAME}}
+WorkingDirectory=/home/{{ACCOUNT_NAME}}/nmos-controller
+ExecStart=/home/{{ACCOUNT_NAME}}/nmos-controller/venv/bin/python3 main.py
+
+# WebGUIはポート80(特権ポート)でLISTENする。rootでは実行せず、
+# CAP_NET_BIND_SERVICE のみをアンビエントケーパビリティとして付与する。
+# (python3バイナリ自体に setcap するとシステム全体のpythonに権限が
+#  付与されてしまうため、systemd側でこのユニットにのみ付与する)
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nmos-controller
+
+[Install]
+WantedBy=multi-user.target

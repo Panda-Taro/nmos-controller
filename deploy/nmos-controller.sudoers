@@ -1,0 +1,17 @@
+# NMOS Controller: WebGUIから実行させる必要最小限のコマンドのみを
+# NOPASSWDで許可する（ワイルドカードや ALL は使わない）。
+#
+# {{ACCOUNT_NAME}} は deploy.sh がデプロイ時に実際のユーザー名へ
+# 置換する。このファイル自体は /etc/sudoers.d/nmos-controller として
+# 配置され、`visudo -c` による構文チェックを経て有効化される。
+
+# GUIからの再起動
+{{ACCOUNT_NAME}} ALL=(root) NOPASSWD: /usr/sbin/reboot
+
+# GUIからのシャットダウン（引数まで固定でマッチさせる）
+{{ACCOUNT_NAME}} ALL=(root) NOPASSWD: /usr/sbin/shutdown -h now
+
+# GUIからのIPアドレス変更（netplan反映）。
+# 引数を受け取らず、固定の一時ファイルを固定のnetplanパスへ
+# cpするだけの専用ラッパースクリプトのみを許可する。
+{{ACCOUNT_NAME}} ALL=(root) NOPASSWD: /usr/local/bin/nmos-apply-netplan.sh

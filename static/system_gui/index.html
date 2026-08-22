@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>システム設定 - NMOS Controller</title>
+    <link rel="stylesheet" href="/static/system_gui/style.css">
+</head>
+
+<body>
+
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-left">
+            <span class="header-logo">⬡</span>
+            <span class="header-title">システム設定</span>
+        </div>
+        <div class="header-center">
+            <div class="status-indicator">
+                <span class="status-led" id="status-led"></span>
+                <span class="status-text" id="status-text">接続中...</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <span class="version-text">v1.0.0</span>
+            <button class="btn-close" onclick="window.close()">
+                ✕ 閉じる
+            </button>
+        </div>
+    </header>
+
+    <!-- タブナビゲーション -->
+    <nav class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('program')">
+            🎬 番組ファイル
+        </button>
+        <button class="tab-btn" onclick="switchTab('gui2')">
+            📱 オペレータGUI
+        </button>
+        <button class="tab-btn tab-btn-2line" onclick="switchTab('materials')">
+            <span>📋 SDPファイル</span>
+            <span>インポート</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('restapi')">
+            🔗 REST API
+        </button>
+        <button class="tab-btn" onclick="switchTab('system')">
+            ⚙ システム設定
+        </button>
+    </nav>
+
+    <!-- タブコンテンツエリア -->
+    <main class="tab-content-area">
+
+        <!-- タブ1: 番組ファイル -->
+        <div class="tab-content active" id="tab-program">
+            <div class="tab-inner">
+                <div class="section-header">
+                    <h2 class="section-title">🎬 番組ファイル</h2>
+                    <p class="section-desc">
+                        番組ファイルの保存・呼び出し・インポート・エクスポートを行います
+                    </p>
+                </div>
+
+                <!-- 番組一覧テーブル -->
+                <div class="program-table-wrap">
+                    <table class="program-table">
+                        <thead>
+                            <tr>
+                                <th class="col-check">
+                                    <input type="checkbox" id="program-check-all"
+                                        onchange="onProgramCheckAll(this)">
+                                </th>
+                                <th>番組名</th>
+                                <th class="col-date">更新日時</th>
+                                <th class="col-count">件数</th>
+                                <th class="col-actions">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="program-tbody">
+                            <tr>
+                                <td colspan="5" class="program-empty">
+                                    読み込み中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 下部ツールバー -->
+                <div class="program-toolbar">
+                    <div class="program-toolbar-left">
+                        <button class="btn-primary" onclick="openNewProgramModal()">
+                            💾 新規保存
+                        </button>
+                        <button class="btn-secondary" id="btn-overwrite"
+                            onclick="overwriteProgram()" disabled>
+                            💾 上書き保存
+                        </button>
+                        <button class="btn-secondary" onclick="openImportProgram()">
+                            📥 インポート
+                        </button>
+                        <button class="btn-secondary" id="btn-export-selected"
+                            onclick="exportSelectedPrograms()" disabled>
+                            📤 エクスポート
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ロード進捗バー -->
+                <div class="program-progress" id="program-progress"
+                    style="display:none;">
+                    <span class="program-progress-icon">⏳</span>
+                    <span class="program-progress-text" id="program-progress-text">
+                        Source情報送信中...
+                    </span>
+                    <span class="program-progress-count" id="program-progress-count">
+                        0 / 0
+                    </span>
+                    <div class="program-progress-bar-wrap">
+                        <div class="program-progress-bar"
+                            id="program-progress-bar"></div>
+                    </div>
+                    <button class="btn-danger program-abort-btn"
+                        onclick="abortProgramLoad()">
+                        ■ 中止
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 番組 新規保存モーダル -->
+        <div class="dialog-overlay" id="program-new-modal">
+            <div class="dialog-box" style="width:400px;">
+                <div class="dialog-title">💾 番組ファイルを新規保存</div>
+                <div class="dialog-field">
+                    <label class="field-label">
+                        番組名 <span class="required">*</span>
+                    </label>
+                    <input type="text" class="field-input"
+                        id="program-new-name"
+                        placeholder="例: 報道ステーション"
+                        oninput="clearProgramNewError()">
+                    <div class="field-hint">
+                        現在のIS-05接続状態を取得して保存します
+                    </div>
+                </div>
+                <div class="dialog-error" id="program-new-error"></div>
+                <div class="dialog-btns">
+                    <button class="btn-secondary"
+                        onclick="closeNewProgramModal()">
+                        キャンセル
+                    </button>
+                    <button class="btn-primary"
+                        onclick="saveNewProgram()">
+                        💾 保存する
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 番組 ロード確認モーダル -->
+        <div class="dialog-overlay" id="program-load-modal">
+            <div class="dialog-box" style="width:480px;">
+                <div class="dialog-title">▶ 番組ファイルをロード</div>
+                <p style="color:#d4d4d4; font-size:13px; margin-bottom:8px;">
+                    <span id="program-load-name"
+                        style="color:#4ec9b0; font-weight:600;"></span>
+                    をロードします。
+                </p>
+                <p style="color:#888; font-size:12px; margin-bottom:16px;">
+                    全Receiverに対してJoin/Leave指示を送信します。<br>
+                    送信中は画面下部に進捗が表示されます。
+                </p>
+                <div class="dialog-btns">
+                    <button class="btn-secondary"
+                        onclick="closeProgramLoadModal()">
+                        キャンセル
+                    </button>
+                    <button class="btn-primary"
+                        onclick="confirmProgramLoad()">
+                        ▶ ロード開始
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 番組 バリデーションエラーモーダル -->
+        <div class="dialog-overlay" id="program-error-modal">
+            <div class="dialog-box" style="width:520px;">
+                <div class="dialog-title" style="color:#f88;">
+                    ⚠ 整合チェックエラー
+                </div>
+                <p style="color:#d4d4d4; font-size:13px; margin-bottom:8px;">
+                    番組ファイルと現在のシステムが一致しません。
+                </p>
+                <div id="program-error-list"
+                    style="background:#1a1010; border:1px solid #f44;
+                           border-radius:4px; padding:10px 14px;
+                           max-height:200px; overflow-y:auto;
+                           font-size:12px; color:#f88;
+                           font-family:monospace; line-height:1.8;">
+                </div>
+                <div class="dialog-btns">
+                    <button class="btn-secondary"
+                        onclick="closeProgramErrorModal()">
+                        閉じる
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ2: オペレータGUI -->
+        <div class="tab-content" id="tab-gui2">
+            <div class="tab-inner">
+                <div class="section-header">
+                    <h2 class="section-title">📱 オペレータGUI</h2>
+                    <p class="section-desc">
+                        iPad向けオペレータGUIのパネル設定を行います
+                    </p>
+                </div>
+                <div class="gui2-toolbar">
+                    <button class="btn-primary" onclick="openPanelCreateModal()">
+                        ＋ パネルを追加
+                    </button>
+                </div>
+                <div id="gui2-panel-list" class="gui2-panel-list">
+                    <div class="sdp-loading">読み込み中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- パネル編集モーダル -->
+        <div class="dialog-overlay" id="gui2-panel-modal">
+            <div class="dialog-box dialog-box-wide" style="width:680px; max-height:90vh;">
+                <div class="dialog-title" id="gui2-modal-title">📱 パネルを追加</div>
+                <div class="dialog-field">
+                    <label class="field-label">
+                        パネルID <span class="required">*</span>
+                        <span class="field-hint" style="display:inline; margin-left:8px;">
+                            英数字・ハイフン・アンダースコアのみ
+                        </span>
+                    </label>
+                    <input type="text" class="field-input" id="gui2-panel-id"
+                        placeholder="例: ve, audio, 01">
+                </div>
+                <div class="dialog-field">
+                    <label class="field-label">
+                        表示名 <span class="required">*</span>
+                    </label>
+                    <input type="text" class="field-input" id="gui2-panel-name"
+                        placeholder="例: No.1 VE, 音声卓">
+                </div>
+                <div class="dialog-error" id="gui2-modal-error"></div>
+                <div class="gui2-section-label">
+                    📤 Sources（送信元）
+                    <button class="btn-icon" style="margin-left:8px;"
+                        onclick="addSourceRow()">＋ 追加</button>
+                </div>
+                <div id="gui2-sources-list" class="gui2-items-list"></div>
+                <div class="gui2-section-label" style="margin-top:16px;">
+                    📥 Destinations（送信先）
+                    <button class="btn-icon" style="margin-left:8px;"
+                        onclick="addDestRow()">＋ 追加</button>
+                </div>
+                <div id="gui2-dests-list" class="gui2-items-list"></div>
+                <div class="dialog-btns">
+                    <button class="btn-secondary" onclick="closePanelModal()">キャンセル</button>
+                    <button class="btn-primary" onclick="savePanel()">💾 保存する</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- パネル削除確認モーダル -->
+        <div class="dialog-overlay" id="gui2-delete-modal">
+            <div class="dialog-box">
+                <div class="dialog-title">🗑 パネルを削除</div>
+                <p style="color:#d4d4d4; font-size:13px; margin-bottom:16px;">
+                    <span id="gui2-delete-name" style="color:#f88; font-weight:600;"></span>
+                    を削除しますか？<br>
+                    <span style="font-size:11px; color:#888;">この操作は元に戻せません。</span>
+                </p>
+                <div class="dialog-btns">
+                    <button class="btn-secondary" onclick="closeDeleteModal()">キャンセル</button>
+                    <button class="btn-danger" onclick="confirmDeletePanel()">🗑 削除する</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ3: SDPファイルインポート -->
+        <div class="tab-content" id="tab-materials">
+            <div class="tab-inner">
+                <div class="section-header">
+                    <h2 class="section-title">📋 SDPファイルインポート</h2>
+                    <p class="section-desc">SDPファイルの登録・管理を行います</p>
+                </div>
+                <div class="sdp-toolbar">
+                    <button class="btn-primary" onclick="openSdpImportDialog()">
+                        📤 SDPファイルを追加
+                    </button>
+                </div>
+                <div id="sdp-list">
+                    <div class="sdp-loading">読み込み中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ4: REST API -->
+        <div class="tab-content" id="tab-restapi">
+            <div class="tab-inner">
+                <div class="section-header">
+                    <h2 class="section-title">🔗 REST APIトリガー設定</h2>
+                    <p class="section-desc">
+                        外部連携用REST APIのトリガー設定を行います。<br>
+                        <span style="font-family:monospace; color:#4ec9b0;">
+                            GET|POST /api/trigger/{番号 or URL Key}
+                        </span>
+                        で外部から実行できます。
+                    </p>
+                </div>
+
+                <!-- ツールバー -->
+                <div class="restapi-toolbar">
+                    <div class="restapi-toolbar-left">
+                        <button class="btn-primary"
+                            onclick="openTriggerCreateModal()">
+                            ＋ トリガーを追加
+                        </button>
+                        <button class="btn-secondary"
+                            onclick="openShortcutListModal()">
+                            ⌨ ショートカット一覧
+                        </button>
+                    </div>
+                    <div class="restapi-toolbar-right">
+                        <input type="text"
+                            class="restapi-search"
+                            id="restapi-search"
+                            placeholder="🔍 番号・URL Keyで検索..."
+                            oninput="filterTriggers()">
+                    </div>
+                </div>
+
+                <!-- トリガー一覧テーブル -->
+                <div class="restapi-table-wrap">
+                    <table class="restapi-table">
+                        <thead>
+                            <tr>
+                                <th class="col-drag"></th>
+                                <th class="col-num">番号</th>
+                                <th class="col-label">URL Key</th>
+                                <th class="col-video">Video</th>
+                                <th class="col-audio">Audio</th>
+                                <th class="col-anc">ANC</th>
+                                <th class="col-shortcut">⌨</th>
+                                <th class="col-actions">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="restapi-tbody">
+                            <tr>
+                                <td colspan="8" class="restapi-empty">
+                                    読み込み中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- URL例の説明 -->
+                <div class="restapi-url-hint">
+                    <span style="color:#666;">実行URL例:</span>
+                    <code>/api/trigger/001</code>
+                    <span style="color:#555;">または</span>
+                    <code>/api/trigger/MON1_CAM1</code>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- タブ5: システム設定 -->
+        <div class="tab-content" id="tab-system">
+            <div class="tab-inner">
+                <div class="section-header">
+                    <h2 class="section-title">⚙ システム設定</h2>
+                    <p class="section-desc">
+                        ネットワーク設定・ログ確認・サーバー管理を行います
+                    </p>
+                </div>
+                <div class="subsection-list">
+
+                    <!-- 【1】IPアドレス・ポート設定 -->
+                    <div class="subsection-card expandable" id="card-network">
+                        <div class="subsection-header" onclick="toggleCard('network')">
+                            <span class="subsection-icon">🌐</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title">IPアドレス・ポート設定</div>
+                                <div class="subsection-desc">RDS・サーバーの接続先設定</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-network">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-network">
+                            <div class="field-grid">
+                                <div class="field-group">
+                                    <label class="field-label">IPアドレス</label>
+                                    <input type="text" class="field-input" id="net-ip"
+                                        placeholder="192.168.10.252">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">サブネット（プレフィックス長）</label>
+                                    <input type="number" class="field-input" id="net-subnet"
+                                        placeholder="24" min="1" max="32">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">デフォルトゲートウェイ</label>
+                                    <input type="text" class="field-input" id="net-gw"
+                                        placeholder="192.168.10.254">
+                                </div>
+                            </div>
+                            <div class="field-divider"></div>
+                            <div class="field-grid">
+                                <div class="field-group">
+                                    <label class="field-label">Registration Port</label>
+                                    <input type="number" class="field-input" id="net-reg-port"
+                                        placeholder="3210">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Query Port</label>
+                                    <input type="number" class="field-input" id="net-query-port"
+                                        placeholder="3211">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Node Port</label>
+                                    <input type="number" class="field-input" id="net-node-port"
+                                        placeholder="3212">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Logging Port</label>
+                                    <input type="number" class="field-input" id="net-log-port"
+                                        placeholder="3213">
+                                </div>
+                            </div>
+                            <div class="sys-note">
+                                ⚠ 保存するとサーバーが自動的に再起動します。
+                                新しいIPアドレスでアクセスしてください。
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn-primary" onclick="saveNetworkConfig()">
+                                    💾 保存して再起動
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 【2】設定ファイル インポート/エクスポート -->
+                    <div class="subsection-card expandable" id="card-fileio">
+                        <div class="subsection-header" onclick="toggleCard('fileio')">
+                            <span class="subsection-icon">📁</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title">設定ファイル インポート/エクスポート</div>
+                                <div class="subsection-desc">config.json / database.json の管理</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-fileio">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-fileio">
+                            <div class="file-io-grid">
+                                <div class="file-io-row">
+                                    <span class="file-io-label">config.json</span>
+                                    <div class="file-io-btns">
+                                        <button class="btn-secondary"
+                                            onclick="exportFile('config')">📤 エクスポート</button>
+                                        <button class="btn-secondary"
+                                            onclick="importFile('config')">📥 インポート</button>
+                                    </div>
+                                </div>
+                                <div class="file-io-row">
+                                    <span class="file-io-label">database.json</span>
+                                    <div class="file-io-btns">
+                                        <button class="btn-secondary"
+                                            onclick="exportFile('database')">📤 エクスポート</button>
+                                        <button class="btn-secondary"
+                                            onclick="importFile('database')">📥 インポート</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 【3】ログ確認 -->
+                    <div class="subsection-card expandable" id="card-logs">
+                        <div class="subsection-header" onclick="toggleCard('logs')">
+                            <span class="subsection-icon">📜</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title">ログ確認</div>
+                                <div class="subsection-desc">最新100件の表示・エクスポート</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-logs">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-logs">
+                            <div class="log-toolbar">
+                                <span class="log-info" id="log-info"></span>
+                                <div class="btn-row" style="margin-top:0;">
+                                    <button class="btn-secondary" onclick="loadLogs()">🔄 更新</button>
+                                    <button class="btn-secondary" onclick="exportLogs()">📤 エクスポート</button>
+                                </div>
+                            </div>
+                            <pre class="log-view" id="log-view">読み込み中...</pre>
+                        </div>
+                    </div>
+
+                    <!-- 【4】NMOS-RDS状態確認 -->
+                    <div class="subsection-card expandable" id="card-rds">
+                        <div class="subsection-header" onclick="toggleCard('rds')">
+                            <span class="subsection-icon">🐳</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title">NMOS-RDS状態確認</div>
+                                <div class="subsection-desc">Dockerコンテナの状態確認</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-rds">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-rds">
+                            <div class="field-label" style="margin-bottom:6px;">
+                                docker compose ps
+                            </div>
+                            <pre class="log-view log-view-sm" id="rds-ps-view">読み込み中...</pre>
+                            <div class="field-label" style="margin:10px 0 6px;">
+                                docker compose logs（最新50件）
+                            </div>
+                            <pre class="log-view" id="rds-log-view">読み込み中...</pre>
+                            <div class="btn-row">
+                                <button class="btn-secondary" onclick="loadRdsStatus()">🔄 更新</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 【5】番組ロード送信間隔設定 -->
+                    <div class="subsection-card expandable" id="card-interval">
+                        <div class="subsection-header" onclick="toggleCard('interval')">
+                            <span class="subsection-icon">⏱</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title">番組ロード送信間隔設定</div>
+                                <div class="subsection-desc">NMOS送信間隔（ms）の設定</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-interval">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-interval">
+                            <div class="field-group" style="max-width:200px;">
+                                <label class="field-label">送信間隔（ms）</label>
+                                <input type="number" class="field-input" id="program-interval"
+                                    min="0" step="10" placeholder="100">
+                            </div>
+                            <div class="sys-note">
+                                番組ファイルロード時に各Receiverへ送信する間隔です。0ms = 間隔なし
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn-primary" onclick="saveProgramInterval()">
+                                    💾 保存する
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 【6】サーバー再起動 -->
+                    <div class="subsection-card expandable danger" id="card-reboot">
+                        <div class="subsection-header" onclick="toggleCard('reboot')">
+                            <span class="subsection-icon">🔄</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title danger">サーバー再起動</div>
+                                <div class="subsection-desc">sudoers設定が必要</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-reboot">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-reboot">
+                            <div class="sys-note danger">
+                                サーバー（Linux）を再起動します。再起動中は本システムが利用できません。
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn-danger" onclick="rebootServer()">🔄 再起動する</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 【6-2】サーバーシャットダウン ← ★追加 -->
+                    <div class="subsection-card expandable danger" id="card-shutdown">
+                        <div class="subsection-header" onclick="toggleCard('shutdown')">
+                            <span class="subsection-icon">⏻</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title danger">サーバーシャットダウン</div>
+                                <div class="subsection-desc">sudoers設定が必要</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-shutdown">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-shutdown">
+                            <div class="sys-note danger">
+                                サーバー（Linux）をシャットダウンします。電源が切れます。再起動するには物理的な操作が必要です。
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn-danger" onclick="shutdownServer()">⏻ シャットダウンする</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 【7】設定初期化 -->
+                    <div class="subsection-card expandable danger" id="card-reset">
+                        <div class="subsection-header" onclick="toggleCard('reset')">
+                            <span class="subsection-icon">⚠</span>
+                            <div class="subsection-body">
+                                <div class="subsection-title danger">設定初期化</div>
+                                <div class="subsection-desc">database.json を空にする</div>
+                            </div>
+                            <span class="expand-arrow" id="arrow-reset">▶</span>
+                        </div>
+                        <div class="subsection-content" id="content-reset">
+                            <div class="sys-note danger">
+                                database.json を空の状態に戻します。
+                                登録済み素材・レイアウト・番組データが全て削除されます。
+                                この操作は元に戻せません。
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn-danger" onclick="resetDatabase()">⚠ 初期化する</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==========================================
+        REST API トリガー追加/編集モーダル
+    ========================================== -->
+    <div class="dialog-overlay" id="trigger-modal">
+        <div class="dialog-box" style="width:640px; max-height:90vh;">
+            <div class="dialog-title" id="trigger-modal-title">
+                🔗 トリガーを追加
+            </div>
+
+            <!-- URL Key -->
+            <div class="dialog-field">
+                <label class="field-label">
+                    URL Key <span class="required">*</span>
+                    <span class="field-hint" style="display:inline; margin-left:8px;">
+                        英数字・アンダースコア・ハイフンのみ
+                    </span>
+                </label>
+                <input type="text" class="field-input" id="trigger-label"
+                    placeholder="例: MON1_CAM1">
+                <div class="field-hint" id="trigger-url-preview"
+                    style="margin-top:4px; color:#4ec9b0; font-family:monospace;">
+                </div>
+            </div>
+
+            <div class="dialog-error" id="trigger-modal-error"></div>
+
+            <!-- V/A/ANC 設定テーブル -->
+            <div class="trigger-vaa-table">
+                <div class="trigger-vaa-header">
+                    <span></span>
+                    <span>Sender（Source）</span>
+                    <span>Receiver（Destination）</span>
+                </div>
+
+                <!-- Video -->
+                <div class="trigger-vaa-row">
+                    <span class="trigger-vaa-label video">🎬 Video</span>
+                    <select class="field-input trigger-select"
+                        id="trigger-video-sender">
+                    </select>
+                    <select class="field-input trigger-select"
+                        id="trigger-video-receiver">
+                    </select>
+                </div>
+
+                <!-- Audio -->
+                <div class="trigger-vaa-row">
+                    <span class="trigger-vaa-label audio">🔊 Audio</span>
+                    <select class="field-input trigger-select"
+                        id="trigger-audio-sender">
+                    </select>
+                    <select class="field-input trigger-select"
+                        id="trigger-audio-receiver">
+                    </select>
+                </div>
+
+                <!-- ANC -->
+                <div class="trigger-vaa-row">
+                    <span class="trigger-vaa-label anc">📡 ANC</span>
+                    <select class="field-input trigger-select"
+                        id="trigger-anc-sender">
+                    </select>
+                    <select class="field-input trigger-select"
+                        id="trigger-anc-receiver">
+                    </select>
+                </div>
+            </div>
+
+            <div class="dialog-btns">
+                <button class="btn-secondary"
+                    onclick="closeTriggerModal()">キャンセル</button>
+                <button class="btn-primary"
+                    onclick="saveTrigger()">💾 保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+        REST API トリガー削除確認モーダル
+    ========================================== -->
+    <div class="dialog-overlay" id="trigger-delete-modal">
+        <div class="dialog-box">
+            <div class="dialog-title">🗑 トリガーを削除</div>
+            <p style="color:#d4d4d4; font-size:13px; margin-bottom:16px;">
+                <span id="trigger-delete-name"
+                    style="color:#f88; font-weight:600;"></span>
+                を削除しますか？<br>
+                <span style="font-size:11px; color:#888;">
+                    この操作は元に戻せません。
+                </span>
+            </p>
+            <div class="dialog-btns">
+                <button class="btn-secondary"
+                    onclick="closeTriggerDeleteModal()">キャンセル</button>
+                <button class="btn-danger"
+                    onclick="confirmDeleteTrigger()">🗑 削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+        キーボードショートカット割り当てポップアップ
+    ========================================== -->
+    <div class="dialog-overlay" id="shortcut-assign-modal">
+        <div class="dialog-box" style="width:360px; text-align:center;">
+            <div class="dialog-title">⌨ キー割り当て</div>
+            <p style="color:#888; font-size:12px; margin-bottom:8px;">
+                割り当てるトリガー:
+            </p>
+            <p id="shortcut-assign-label"
+                style="color:#4ec9b0; font-weight:600;
+                       font-size:14px; margin-bottom:20px;">
+            </p>
+            <div class="shortcut-key-display" id="shortcut-key-display">
+                割り当てたいキーを押してください
+            </div>
+            <p style="color:#555; font-size:11px; margin-top:8px;">
+                ESCキーでキャンセル
+            </p>
+            <div class="dialog-btns" style="justify-content:center; gap:12px;">
+                <button class="btn-secondary"
+                    onclick="closeShortcutAssignModal()">キャンセル</button>
+                <button class="btn-danger"
+                    id="shortcut-clear-btn"
+                    onclick="clearShortcut()"
+                    style="display:none;">
+                    🗑 割り当て解除
+                </button>
+                <button class="btn-primary"
+                    id="shortcut-save-btn"
+                    onclick="saveShortcut()"
+                    style="display:none;">
+                    💾 割り当てる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+        ショートカット一覧モーダル
+    ========================================== -->
+    <div class="dialog-overlay" id="shortcut-list-modal">
+        <div class="dialog-box" style="width:480px; max-height:80vh;">
+            <div class="dialog-title">⌨ キーボードショートカット一覧</div>
+            <div id="shortcut-list-content">
+                <div class="sdp-loading">読み込み中...</div>
+            </div>
+            <div class="dialog-btns">
+                <button class="btn-secondary"
+                    onclick="closeShortcutListModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SDPインポートダイアログ -->
+    <div class="dialog-overlay" id="sdp-dialog-overlay">
+        <div class="dialog-box">
+            <div class="dialog-title">📋 SDPファイルの登録</div>
+            <div class="dialog-field">
+                <label class="field-label">ファイル名</label>
+                <div class="dialog-filename" id="dialog-filename">-</div>
+            </div>
+            <div class="dialog-field">
+                <label class="field-label">
+                    ラベル <span class="required">*</span>
+                </label>
+                <input type="text" class="field-input" id="dialog-label"
+                    placeholder="例: TX30映像" oninput="onDialogLabelInput()">
+            </div>
+            <div class="dialog-field">
+                <label class="field-label">Description</label>
+                <input type="text" class="field-input" id="dialog-description"
+                    placeholder="空欄の場合はラベルと同じになります">
+                <div class="field-hint">※ SDPの s= フィールドから自動取得</div>
+            </div>
+            <div class="dialog-field">
+                <label class="field-label">種類 <span class="required">*</span></label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="dialog-category" value="video" checked>
+                        🎬 Video
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="dialog-category" value="audio">
+                        🔊 Audio
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="dialog-category" value="ancillary">
+                        📡 Ancillary
+                    </label>
+                </div>
+            </div>
+            <div class="dialog-error" id="dialog-error"></div>
+            <div class="dialog-btns">
+                <button class="btn-secondary" onclick="closeSdpDialog()">キャンセル</button>
+                <button class="btn-primary" onclick="submitSdpImport()">登録する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SDP内容表示ダイアログ -->
+    <div class="dialog-overlay" id="sdp-view-overlay">
+        <div class="dialog-box dialog-box-wide">
+            <div class="dialog-title">📄 SDP内容</div>
+            <div class="dialog-filename" id="sdp-view-filename"></div>
+            <pre class="sdp-content-view" id="sdp-view-content"></pre>
+            <div class="dialog-btns">
+                <button class="btn-secondary" onclick="closeSdpViewDialog()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ラベル編集ダイアログ -->
+    <div class="dialog-overlay" id="sdp-edit-overlay">
+        <div class="dialog-box">
+            <div class="dialog-title">✏ ラベル・Description編集</div>
+            <input type="hidden" id="edit-item-id">
+            <input type="hidden" id="edit-category">
+            <div class="dialog-field">
+                <label class="field-label">
+                    ラベル <span class="required">*</span>
+                </label>
+                <input type="text" class="field-input" id="edit-label"
+                    placeholder="ラベルを入力">
+            </div>
+            <div class="dialog-field">
+                <label class="field-label">Description</label>
+                <input type="text" class="field-input" id="edit-description"
+                    placeholder="空欄の場合はラベルと同じになります">
+            </div>
+            <div class="dialog-error" id="edit-error"></div>
+            <div class="dialog-btns">
+                <button class="btn-secondary" onclick="closeSdpEditDialog()">キャンセル</button>
+                <button class="btn-primary" onclick="submitSdpEdit()">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/lib/sortable.min.js"></script>
+    <script src="/static/system_gui/script.js"></script>
+
+</body>
+</html>

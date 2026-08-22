@@ -1,0 +1,23 @@
+# 環境依存の設定・運用データ（deploy.sh が mkdir -p で作成し、
+# main.py / deploy.sh が初回生成する。実IPアドレス等を含むため
+# リポジトリには含めない）
+data/
+logs/
+sdp/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+env/
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ツール設定（ローカル環境固有）
+.claude/

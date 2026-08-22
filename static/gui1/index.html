@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>NMOS Controller - GUI①</title>
+    <link rel="stylesheet" href="/static/gui1/style.css">
+</head>
+<body>
+
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-left">
+            <span class="header-logo">⬡</span>
+            <span class="header-title">NMOS Controller</span>
+            <nav class="header-nav">
+                <a class="nav-btn active" href="/">GUI①</a>
+                <a class="nav-btn" href="/node/"
+                   target="_blank">Node GUI</a>
+                <a class="nav-btn" href="/system/"
+                   target="_blank">System</a>
+            </nav>
+            <!-- フィルターボタン（5ボタン） -->
+            <div class="header-filter">
+                <button class="fmt-btn fmt-btn-v1 active"
+                    id="fmt-v1"
+                    onclick="toggleFmt('video1')">V1
+                </button>
+                <button class="fmt-btn fmt-btn-v2"
+                    id="fmt-v2"
+                    onclick="toggleFmt('video2')">V2
+                </button>
+                <button class="fmt-btn fmt-btn-a1 active"
+                    id="fmt-a1"
+                    onclick="toggleFmt('audio1')">A1
+                </button>
+                <button class="fmt-btn fmt-btn-a2"
+                    id="fmt-a2"
+                    onclick="toggleFmt('audio2')">A2
+                </button>
+                <button class="fmt-btn fmt-btn-anc"
+                    id="fmt-anc"
+                    onclick="toggleFmt('ancillary')">ANC
+                </button>
+            </div>
+        </div>
+
+        <div class="header-center">
+            <div class="status-indicator">
+                <span class="status-led" id="status-led">
+                </span>
+                <span class="status-text" id="status-text">
+                    接続中...
+                </span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <!-- ボタンサイズ選択 -->
+            <div class="size-group">
+                <span class="size-label">サイズ</span>
+                <button class="size-btn"
+                    id="size-large"
+                    onclick="setCardSize('large')">大</button>
+                <button class="size-btn active"
+                    id="size-medium"
+                    onclick="setCardSize('medium')">中</button>
+                <button class="size-btn"
+                    id="size-small"
+                    onclick="setCardSize('small')">小</button>
+            </div>
+            <!-- ショートカットトグル -->
+            <div class="toggle-group">
+                <span class="toggle-label">⌨ SC</span>
+                <label class="toggle-switch">
+                    <input type="checkbox"
+                        id="toggle-shortcut"
+                        onchange="onToggleShortcut()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <!-- LEAVEボタン -->
+            <button class="btn-leave" id="btn-leave"
+                onclick="onLeave()">LEAVE
+            </button>
+        </div>
+    </header>
+
+    <!-- メインコンテナ（3カラム） -->
+    <div class="main-container">
+
+        <!-- SOURCE（左ペイン） -->
+        <div class="pane" id="pane-source">
+            <div class="pane-header">
+                <span class="pane-title source">SOURCE</span>
+            </div>
+            <div class="sub-panes" id="source-sub-panes">
+            </div>
+        </div>
+
+        <!-- 中央 TAKE カラム -->
+        <div class="take-column">
+            <button class="btn-take" id="btn-take"
+                onclick="onTake()">
+                <span class="take-arrow">→</span>
+                <span>TAKE</span>
+            </button>
+        </div>
+
+        <!-- DESTINATION（右ペイン） -->
+        <div class="pane" id="pane-dest">
+            <div class="pane-header">
+                <span class="pane-title destination">
+                    DESTINATION
+                </span>
+            </div>
+            <div class="sub-panes" id="dest-sub-panes">
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 右クリックメニュー -->
+    <div class="context-menu" id="context-menu"
+         style="display:none;">
+        <div class="context-menu-item"
+             onclick="onContextEdit()">✏ 編集</div>
+        <div class="context-menu-item danger"
+             onclick="onContextDelete()">🗑 削除</div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">素材を編集</span>
+                <button class="modal-close"
+                    onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>ラベル（表示名）</label>
+                    <input type="text" class="form-input"
+                        id="edit-label"
+                        placeholder="例: LV5600"
+                        oninput="clearEditError()">
+                </div>
+                <div class="form-error"
+                     id="edit-error"></div>
+                <div class="form-group">
+                    <label>種別</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio"
+                                name="edit-type"
+                                value="video" checked>
+                            <span class="radio-badge video">
+                                V</span>映像
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio"
+                                name="edit-type"
+                                value="audio">
+                            <span class="radio-badge audio">
+                                A</span>音声
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio"
+                                name="edit-type"
+                                value="ancillary">
+                            <span class="radio-badge ancillary">
+                                ANC</span>アンシラリ
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel"
+                    onclick="closeEditModal()">
+                    キャンセル
+                </button>
+                <button class="btn-save"
+                    onclick="saveEdit()">保存する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 削除確認モーダル -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">素材の削除</span>
+                <button class="modal-close"
+                    onclick="closeDeleteModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <p id="delete-confirm-text"
+                       style="color:#d4d4d4;">
+                        この素材を削除しますか？
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel"
+                    onclick="closeDeleteModal()">
+                    キャンセル
+                </button>
+                <button class="btn-delete-confirm"
+                    onclick="confirmDelete()">削除する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/lib/sortable.min.js"></script>
+    <script src="/static/gui1/script.js"></script>
+</body>
+</html>
