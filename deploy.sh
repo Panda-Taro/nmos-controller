@@ -61,9 +61,9 @@ else
     "rds": {
         "host": "192.168.1.100",
         "registration_port": 3210,
-        "query_port": 3210,
-        "node_port": 3210,
-        "logging_port": 3210
+        "query_port": 3211,
+        "node_port": 3212,
+        "logging_port": 3213
     },
     "server": {
         "host": "0.0.0.0",

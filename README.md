@@ -129,10 +129,10 @@ nmos-controller` が必要)。
 | キー | 説明 | 初回デプロイ時の値 |
 |---|---|---|
 | `rds.host` | NMOS-RDSのIPアドレス。**要編集** | `192.168.1.100`(ダミー) |
-| `rds.registration_port` | RDSのRegistration API ポート | `3210`(ダミー) |
-| `rds.query_port` | RDSのQuery API ポート | `3210`(ダミー) |
-| `rds.node_port` | RDSのNode APIポート | `3210`(ダミー) |
-| `rds.logging_port` | RDSのLogging APIポート | `3210`(ダミー) |
+| `rds.registration_port` | RDSのRegistration API ポート | `3210`(既定値) |
+| `rds.query_port` | RDSのQuery API ポート | `3211`(既定値) |
+| `rds.node_port` | RDSのNode APIポート | `3212`(既定値) |
+| `rds.logging_port` | RDSのLogging APIポート | `3213`(既定値) |
 | `server.host` | 本サービスのListenアドレス | `0.0.0.0`(固定でよい) |
 | `server.port` | 本サービスのListenポート | `80`(要件により固定) |
 | `log.directory` | ログ出力先 | `$HOME/nmos-controller/logs` |
