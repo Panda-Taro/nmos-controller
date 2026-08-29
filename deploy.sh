@@ -73,7 +73,7 @@ else
         "directory": "${HOME}/nmos-controller/logs"
     },
     "nmos_rds": {
-        "registry_json_path": "${HOME}/nmos-rds/config/registry_config.json",
+        "registry_json_path": "${HOME}/nmos-rds/registry.json",
         "compose_directory": "${HOME}/nmos-rds"
     },
     "sdp": {
@@ -128,11 +128,12 @@ fi
 echo "==> netplan設定ファイルを読み取り可能にします（検証環境向け簡易対応、sudoが必要です）。"
 sudo chmod o+r "${NETPLAN_PATH}"
 
-# NMOS-RDS側の registry_json_path (registry_config.json) も、
-# RDSのDockerコンテナ(root)が作成したroot所有ファイルになっている
-# ことがあり、非rootの本サービスから書き込めず「IPアドレス・ポート設定」
-# 保存時にPermission deniedになる。本システムは検証用途でセキュリティ
-# 要件が低いため、存在する場合のみ簡易対応として世界書き込み可能にする。
+# NMOS-RDS側の registry_json_path (registry.json) は、現在の
+# NMOS-RDS構成(compose.yaml で :ro マウント)ではRDSのDockerコンテナが
+# 書き込むことは無く、ホスト側で作成した通常ファイル(tv-asahi所有)の
+# ままのはずなので、本来は追加のchmodは不要。ただし将来的な構成変更や
+# 手動配置ミス等でroot所有になっているケースに備え、存在する場合のみ
+# 保険的に世界書き込み可能にしておく（検証用途のため簡易対応）。
 # NMOS-RDSがまだデプロイされておらずファイルが存在しない場合はスキップする
 # （その場合はNMOS-RDSデプロイ後に手動で chmod するか、本スクリプトを
 #  再実行すること）。
@@ -146,10 +147,10 @@ except Exception:
 " 2>/dev/null || true)"
 
 if [ -n "${REGISTRY_JSON_PATH}" ] && [ -f "${REGISTRY_JSON_PATH}" ]; then
-    echo "==> registry_config.json を書き込み可能にします（検証環境向け簡易対応、sudoが必要です）。"
+    echo "==> registry.json を書き込み可能にします（念のための保険的対応、sudoが必要です）。"
     sudo chmod o+rw "${REGISTRY_JSON_PATH}"
 else
-    echo "    registry_config.json (${REGISTRY_JSON_PATH:-未設定}) が見つからないためスキップします。"
+    echo "    registry.json (${REGISTRY_JSON_PATH:-未設定}) が見つからないためスキップします。"
     echo "    NMOS-RDSデプロイ後に手動で chmod するか、本スクリプトを再実行してください。"
 fi
 

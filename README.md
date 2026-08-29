@@ -136,7 +136,7 @@ nmos-controller` が必要)。
 | `server.host` | 本サービスのListenアドレス | `0.0.0.0`(固定でよい) |
 | `server.port` | 本サービスのListenポート | `80`(要件により固定) |
 | `log.directory` | ログ出力先 | `$HOME/nmos-controller/logs` |
-| `nmos_rds.registry_json_path` | RDS側`registry_config.json`のパス | `$HOME/nmos-rds/config/registry_config.json` |
+| `nmos_rds.registry_json_path` | RDS側`registry.json`のパス | `$HOME/nmos-rds/registry.json` |
 | `nmos_rds.compose_directory` | RDSのdocker-composeディレクトリ | `$HOME/nmos-rds` |
 | `sdp.directory` | アップロードされたSDPファイルの保存先 | `$HOME/nmos-controller/sdp` |
 
@@ -169,14 +169,15 @@ IP/GW表示(`GET /api/system/network`)すら読み取れません。**本シス�
 転用する場合は、より権限を絞った方式(読み取り専用の別ファイルへの
 コピー配置など)への見直しを推奨します。
 
-同様に、NMOS-RDS側の `nmos_rds.registry_json_path`
-(`registry_config.json`)もRDSのDockerコンテナ(root)が作成した
-root所有ファイルになっている場合があり、非rootの本サービスからは
-書き込めず「IPアドレス・ポート設定」保存時に`Permission denied`と
-なることがあります。**同じく検証用途向けの簡易対応として**、
-`deploy.sh` は `data/config.json` の `nmos_rds.registry_json_path` が
-指すファイルが存在する場合に限り `sudo chmod o+rw` で世界読み書き
-可能にします。NMOS-RDSが本サービスより後にデプロイされ、まだ
-`registry_config.json` が存在しない場合はこのステップはスキップ
-されるため、NMOS-RDSデプロイ後に手動で`chmod`するか、`deploy.sh`を
-再実行してください。
+同様に、NMOS-RDS側の `nmos_rds.registry_json_path`(`registry.json`)
+についても、`deploy.sh` は存在する場合に限り `sudo chmod o+rw` で
+世界読み書き可能にします。現在のNMOS-RDS構成では `compose.yaml` で
+`registry.json` を`:ro`(読み取り専用)でコンテナにマウントしており、
+RDSのDockerコンテナ自身がこのファイルを書き換えることは無いため、
+ホスト側で作成した所有者(`tv-asahi`等)のまま書き込み可能な状態に
+なっているのが通常で、**このchmodは本来不要な保険的対応**です。
+将来的な構成変更等でroot所有になってしまった場合に備えて残して
+あります。NMOS-RDSが本サービスより後にデプロイされ、まだ
+`registry.json` が存在しない場合はこのステップはスキップされるため、
+NMOS-RDSデプロイ後に手動で`chmod`するか、`deploy.sh`を再実行して
+ください。
