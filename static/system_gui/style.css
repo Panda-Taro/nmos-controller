@@ -157,6 +157,12 @@ body {
     padding: 0 12px;
 }
 
+/* 「REST API・キーボードショートカット」用: 2行目が長いため
+   専用にフォントを一段小さくし、他タブとの幅バランスを保つ */
+.tab-btn-restapi .tab-btn-sub {
+    font-size: 9px;
+}
+
 /* ==========================================
    タブコンテンツ
 ========================================== */
@@ -838,6 +844,17 @@ body {
     font-family: monospace;
     margin-top: 2px;
     opacity: 0.8;
+}
+
+.gui2-panel-url a {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.gui2-panel-url a:hover {
+    text-decoration: underline;
+    opacity: 1;
 }
 
 .gui2-panel-btns { display: flex; gap: 4px; flex-shrink: 0; }

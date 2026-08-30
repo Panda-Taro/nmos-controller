@@ -901,9 +901,15 @@ function renderGui2PanelList(panels) {
                 Dest: ${panel.dest_count}件
             </div>
             <div class="gui2-panel-url">
-                /panel/${escHtml(panel.panel_id)}
+                <a href="${escHtml(location.origin)}/panel/${escHtml(panel.panel_id)}/"
+                   target="_blank"
+                   title="クリックで新しいタブで開く"
+                >/panel/${escHtml(panel.panel_id)}</a>
                 &nbsp;|&nbsp;
-                /panel/${escHtml(panel.order_number)}
+                <a href="${escHtml(location.origin)}/panel/${escHtml(panel.order_number)}/"
+                   target="_blank"
+                   title="クリックで新しいタブで開く"
+                >/panel/${escHtml(panel.order_number)}</a>
             </div>
         </div>
         <div class="gui2-panel-btns">
