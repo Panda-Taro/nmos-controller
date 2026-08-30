@@ -9,6 +9,12 @@ let selectedDestId  = null;   // 選択中Dest ID
 let isLocked        = true;   // ロック状態
 let ws              = null;   // WebSocket
 
+// レイアウト変更モード
+let layoutEditMode     = false;
+let destSortable       = null;
+let sourceSortable      = null;
+let layoutEditSnapshot  = null;   // キャンセル用の元の並び順
+
 // ロックスライダー
 let slideStartX     = 0;
 let slideThumbLeft  = 0;
@@ -107,6 +113,15 @@ function connectWebSocket() {
                 connectionMap = msg.data || {};
                 renderDests();
                 renderSources();
+            } else if (
+                msg.type === 'gui2_panel_layout_updated'
+                && panelData
+                && msg.panel_id === panelData.panel_id
+            ) {
+                // 他クライアント（自分自身も含む）での
+                // レイアウト保存を検知し、最新状態を
+                // 反映するため画面を再読み込みする
+                location.reload();
             }
         } catch (err) {
             console.error(err);
@@ -256,6 +271,10 @@ function applyLock(locked) {
     if (!thumb || !label || !overlay)
         return;
 
+    const layoutControls =
+        document.getElementById(
+            'g2-layout-controls');
+
     if (locked) {
         // ロック状態
         thumb.textContent = '🔒';
@@ -271,6 +290,13 @@ function applyLock(locked) {
         header?.classList.remove('unlocked');
 
         overlay.classList.add('active');
+
+        // ロック中はレイアウト変更不可
+        // （編集中であれば安全に中断する）
+        if (layoutEditMode) {
+            cancelLayoutEdit();
+        }
+        layoutControls?.classList.add('hidden');
 
         selectedDestId = null;
         renderDests();
@@ -291,6 +317,8 @@ function applyLock(locked) {
         header?.classList.add('unlocked');
 
         overlay.classList.remove('active');
+
+        layoutControls?.classList.remove('hidden');
 
         renderDests();
         renderSources();
@@ -606,7 +634,7 @@ function getConnectedSourceLabel(dest) {
 // ==========================================
 function onSelectDest(e, dest) {
     e.stopPropagation();
-    if (isLocked) return;
+    if (isLocked || layoutEditMode) return;
 
     if (selectedDestId === dest.id) {
         // 同じDestを再タップで解除
@@ -641,7 +669,7 @@ function onDestPaneBgClick(e) {
 // Source選択 → TAKE実行
 // ==========================================
 async function onSelectSource(src) {
-    if (isLocked) return;
+    if (isLocked || layoutEditMode) return;
     if (!selectedDestId) {
         showToast(
             'Destinationを選択してください',
@@ -774,7 +802,7 @@ async function executeTake(src, dest) {
 // ==========================================
 async function onLeave(e) {
     e.stopPropagation();
-    if (isLocked) return;
+    if (isLocked || layoutEditMode) return;
     if (!selectedDestId) return;
 
     const dest = panelData.destinations
@@ -837,7 +865,7 @@ function updateLeaveBtn() {
             'g2-leave-btn');
     if (!btn) return;
 
-    if (selectedDestId && !isLocked) {
+    if (selectedDestId && !isLocked && !layoutEditMode) {
         btn.classList.remove('disabled');
     } else {
         btn.classList.add('disabled');
@@ -855,6 +883,165 @@ function showError(msg) {
     if (el && msgEl) {
         msgEl.textContent = msg;
         el.style.display = 'flex';
+    }
+}
+
+// ==========================================
+// レイアウト変更モード
+// ==========================================
+function enterLayoutEditMode() {
+    if (isLocked || layoutEditMode || !panelData) return;
+
+    layoutEditMode = true;
+
+    // 元の並び順を保存（キャンセル用）
+    layoutEditSnapshot = {
+        destinations: (panelData.destinations || [])
+            .map(d => ({ ...d })),
+        sources: (panelData.sources || [])
+            .map(s => ({ ...s }))
+    };
+
+    // 選択状態をクリアして再描画
+    selectedDestId = null;
+    renderDests();
+    renderSources();
+    updateLeaveBtn();
+
+    document.getElementById('g2-layout-edit-btn')
+        .style.display = 'none';
+    document.getElementById('g2-layout-save-btn')
+        .style.display = '';
+    document.getElementById('g2-layout-cancel-btn')
+        .style.display = '';
+
+    document.getElementById('g2-dest-pane')
+        ?.classList.add('layout-editing');
+    document.getElementById('g2-source-pane')
+        ?.classList.add('layout-editing');
+
+    const destList   = document.getElementById('g2-dest-list');
+    const sourceList = document.getElementById('g2-source-list');
+
+    if (destList && window.Sortable) {
+        destSortable = Sortable.create(destList, {
+            animation:  150,
+            ghostClass: 'g2-sortable-ghost',
+            dragClass:  'g2-sortable-drag'
+        });
+    }
+    if (sourceList && window.Sortable) {
+        sourceSortable = Sortable.create(sourceList, {
+            animation:  150,
+            ghostClass: 'g2-sortable-ghost',
+            dragClass:  'g2-sortable-drag'
+        });
+    }
+}
+
+function exitLayoutEditUI() {
+    layoutEditMode = false;
+
+    if (destSortable) {
+        destSortable.destroy();
+        destSortable = null;
+    }
+    if (sourceSortable) {
+        sourceSortable.destroy();
+        sourceSortable = null;
+    }
+
+    document.getElementById('g2-dest-pane')
+        ?.classList.remove('layout-editing');
+    document.getElementById('g2-source-pane')
+        ?.classList.remove('layout-editing');
+
+    const editBtn   = document.getElementById('g2-layout-edit-btn');
+    const saveBtn   = document.getElementById('g2-layout-save-btn');
+    const cancelBtn = document.getElementById('g2-layout-cancel-btn');
+    if (editBtn)   editBtn.style.display   = '';
+    if (saveBtn)   saveBtn.style.display   = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+}
+
+function cancelLayoutEdit() {
+    if (!layoutEditMode) return;
+
+    // 元の並び順に戻す
+    if (layoutEditSnapshot) {
+        panelData.destinations = layoutEditSnapshot.destinations;
+        panelData.sources      = layoutEditSnapshot.sources;
+    }
+    layoutEditSnapshot = null;
+
+    exitLayoutEditUI();
+
+    renderDests();
+    renderSources();
+    updateLeaveBtn();
+}
+
+async function saveLayout() {
+    if (!layoutEditMode || !panelData) return;
+
+    // DOM上の現在の並び順を取得し、元データを並び替える
+    const destList   = document.getElementById('g2-dest-list');
+    const sourceList = document.getElementById('g2-source-list');
+
+    const destMap = new Map(
+        (panelData.destinations || []).map(d => [d.id, d])
+    );
+    const sourceMap = new Map(
+        (panelData.sources || []).map(s => [s.id, s])
+    );
+
+    const newDestinations = Array.from(destList?.children || [])
+        .map(el => destMap.get(el.dataset.destId))
+        .filter(Boolean);
+
+    const newSources = Array.from(sourceList?.children || [])
+        .map(el => sourceMap.get(el.dataset.srcId))
+        .filter(Boolean);
+
+    try {
+        const resp = await fetch(
+            `/api/gui2/panels/${panelData.panel_id}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    destinations: newDestinations,
+                    sources:      newSources
+                })
+            }
+        );
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            showToast(
+                `レイアウト保存エラー: `
+                + `${err.detail || resp.status}`,
+                'error'
+            );
+            return;
+        }
+
+        panelData.destinations = newDestinations;
+        panelData.sources      = newSources;
+        layoutEditSnapshot = null;
+
+        exitLayoutEditUI();
+        showToast('レイアウトを保存しました', 'ok');
+        // 他クライアント（自分自身も含む）への反映は
+        // WebSocket経由の gui2_panel_layout_updated
+        // 通知を受けて画面リロードされる想定
+
+    } catch (e) {
+        showToast(
+            `レイアウト保存エラー: ${e.message}`, 'error'
+        );
     }
 }
 

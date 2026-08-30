@@ -337,6 +337,17 @@ async def update_panel(
     # connectionMap監視対象を更新
     await notify_is05_panel_updated()
 
+    # source/destinationの構成（≒レイアウト）が
+    # 変更された場合、このパネルを開いている全クライアント
+    # （自分自身も含む）へ通知し、画面を再読み込みさせる
+    if req.sources is not None \
+            or req.destinations is not None:
+        from is04 import broadcast_to_gui
+        await broadcast_to_gui({
+            "type":     "gui2_panel_layout_updated",
+            "panel_id": resolved
+        })
+
     return JSONResponse(content={
         "message": (
             f"パネル「{panel['display_name']}」を"

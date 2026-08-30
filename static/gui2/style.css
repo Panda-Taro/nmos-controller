@@ -203,6 +203,15 @@ html, body {
     letter-spacing: 1px;
 }
 
+/* DESTINATION=オレンジ基調 / SOURCE=緑基調 で視認性を分ける */
+.g2-dest-pane .g2-pane-label {
+    color: #e0954a;
+}
+
+.g2-source-pane .g2-pane-label {
+    color: #4ec9b0;
+}
+
 .g2-pane-header {
     display: flex;
     align-items: center;
@@ -295,10 +304,10 @@ html, body {
 }
 
 .g2-dest-btn.selected {
-    border-color: #4ec9b0;
-    background: #1a3a30;
+    border-color: #e0954a;
+    background: #3a2a15;
     box-shadow: 0 0 10px
-        rgba(78,201,176,0.3);
+        rgba(224,149,74,0.3);
 }
 
 .g2-dest-btn.locked {
@@ -318,7 +327,7 @@ html, body {
 .g2-dest-src-label {
     font-size: 11px;
     font-weight: 600;
-    color: #4ec9b0;
+    color: #e0954a;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -549,4 +558,56 @@ html, body {
     border-color: #ce9178;
     color: #ce9178;
     background: #2a1e10;
+}
+
+/* ==========================================
+   レイアウト変更モード
+========================================== */
+.g2-layout-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.g2-layout-controls.hidden {
+    display: none;
+}
+
+.g2-layout-btn {
+    background: #2a2a2a;
+    border: 1px solid #555;
+    color: #ccc;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-user-select: none;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.g2-layout-btn:active {
+    background: #333;
+}
+
+.g2-layout-btn.primary {
+    border-color: #4ec9b0;
+    color: #4ec9b0;
+}
+
+/* レイアウト変更モード中: ドラッグ可能であることを示す点線枠 */
+.g2-dest-pane.layout-editing,
+.g2-source-pane.layout-editing {
+    outline: 2px dashed #888;
+    outline-offset: -2px;
+}
+
+.g2-sortable-ghost {
+    opacity: 0.35;
+}
+
+.g2-sortable-drag {
+    cursor: grabbing !important;
 }

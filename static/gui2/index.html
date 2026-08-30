@@ -21,6 +21,26 @@
         <div class="g2-header-right">
             <span class="g2-ws-led"
                   id="g2-ws-led"></span>
+            <div class="g2-layout-controls hidden"
+                 id="g2-layout-controls">
+                <button class="g2-layout-btn"
+                        id="g2-layout-edit-btn"
+                        onclick="enterLayoutEditMode()">
+                    🔀 レイアウト変更
+                </button>
+                <button class="g2-layout-btn primary"
+                        id="g2-layout-save-btn"
+                        style="display:none;"
+                        onclick="saveLayout()">
+                    💾 保存
+                </button>
+                <button class="g2-layout-btn"
+                        id="g2-layout-cancel-btn"
+                        style="display:none;"
+                        onclick="cancelLayoutEdit()">
+                    ✕ キャンセル
+                </button>
+            </div>
             <div class="g2-lock-wrap">
                 <div class="g2-lock-track"
                      id="g2-lock-track">
@@ -88,6 +108,8 @@
         </div>
     </div>
 
+    <script src="/static/lib/sortable.min.js">
+    </script>
     <script src="/static/gui2/script.js">
     </script>
 </body>
