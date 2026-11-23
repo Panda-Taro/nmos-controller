@@ -232,21 +232,29 @@ async def connect_rds_websocket(
             )
 
             # 定期再取得タスクを並行実行
+            # （1回失敗しても止めずに次の周期で再実行する）
             async def periodic_refresh():
                 while True:
                     await asyncio.sleep(30)  # 10 → 30秒
-                    logger.info(
-                        "IS-04: 定期データ再取得..."
-                    )
-                    await fetch_nmos_data(
-                        rds_host, query_port)
-                    is04_status["last_updated"] = \
-                        datetime.now().isoformat()
-                    await broadcast_to_gui({
-                        "type": "nmos_data",
-                        "data": nmos_data
-                    })
-                    await notify_is05_nmos_updated()
+                    try:
+                        logger.info(
+                            "IS-04: 定期データ再取得..."
+                        )
+                        await fetch_nmos_data(
+                            rds_host, query_port)
+                        is04_status["last_updated"] = \
+                            datetime.now().isoformat()
+                        await broadcast_to_gui({
+                            "type": "nmos_data",
+                            "data": nmos_data
+                        })
+                        await notify_is05_nmos_updated()
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as e:
+                        logger.error(
+                            f"IS-04: 定期データ再取得エラー: {e}"
+                        )
 
             refresh_task = asyncio.create_task(
                 periodic_refresh()
@@ -455,14 +463,26 @@ async def broadcast_to_gui(message: dict):
         message, ensure_ascii=False)
     disconnected = []
 
-    for client in gui_clients:
+    # 送信中(await中)に他の処理が gui_clients を増減させても
+    # 影響を受けないよう、コピーに対して送信する
+    for client in list(gui_clients):
         try:
             await client.send_text(message_str)
         except Exception:
             disconnected.append(client)
 
+    # 切断済みクライアントを除外
+    # （接続受付側や同時に走った別の送信処理が先に除外している
+    #   場合があるため、残っているときだけ除外する）
     for client in disconnected:
-        gui_clients.remove(client)
+        _remove_gui_client(client)
+
+def _remove_gui_client(websocket: WebSocket):
+    """gui_clients から除外する（既に除外済みなら何もしない）"""
+    for i, client in enumerate(gui_clients):
+        if client is websocket:
+            del gui_clients[i]
+            return
 
 # ==========================================
 # APIエンドポイント
@@ -535,7 +555,12 @@ async def websocket_gui(websocket: WebSocket):
             await websocket.receive_text()
 
     except WebSocketDisconnect:
-        gui_clients.remove(websocket)
+        pass
+    except Exception as e:
+        logger.warning(f"GUI WebSocketエラー: {e}")
+    finally:
+        # どのような切断でも必ず一覧から除外する
+        _remove_gui_client(websocket)
         logger.info(
             f"GUI WebSocket切断: "
             f"残り{len(gui_clients)}クライアント接続中"

@@ -76,6 +76,14 @@ body {
     border-color: #4ec9b0;
 }
 
+/* バージョン表記（右端） */
+.shell-version {
+    margin-left: auto;
+    color: #777;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
 /* ==========================================
    画面（iframe）
 ========================================== */

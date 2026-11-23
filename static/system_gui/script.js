@@ -211,7 +211,63 @@ async function saveNetworkConfig() {
 // 【2】設定ファイル インポート/エクスポート
 // ==========================================
 function exportFile(type) {
-    window.location.href = `/api/system/export/${type}`;
+    downloadFile(`/api/system/export/${type}`, `${type}.json`);
+}
+
+// ==========================================
+// ファイルのダウンロード
+// （画面のURLを直接切り替えると、サーバーがエラーを返したときに
+//   画面がエラー表示に置き換わってしまうため、取得結果を確認してから
+//   保存する。失敗時はトーストで通知する）
+// ==========================================
+async function downloadFile(url, fallbackName) {
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) {
+            let detail = `${resp.status} ${resp.statusText}`;
+            try {
+                const body = await resp.json();
+                if (body && body.detail) {
+                    detail = typeof body.detail === 'string'
+                        ? body.detail
+                        : JSON.stringify(body.detail);
+                }
+            } catch (_) { /* JSON以外の応答はステータスのみ表示 */ }
+            showToast(`ダウンロードエラー: ${detail}`, 'error');
+            return;
+        }
+
+        const blob = await resp.blob();
+        const name = parseDownloadFilename(
+            resp.headers.get('Content-Disposition')) || fallbackName;
+
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href          = objUrl;
+        a.download      = name;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
+    } catch (e) {
+        showToast(`ダウンロードエラー: ${e.message}`, 'error');
+    }
+}
+
+// Content-Disposition からファイル名を取り出す
+//   attachment; filename="config.json"
+//   attachment; filename*=utf-8''%E7%B4%A0%E6%9D%90.sdp  （日本語名）
+function parseDownloadFilename(header) {
+    if (!header) return null;
+    const star = header.match(/filename\*\s*=\s*([^']*)''([^;]+)/i);
+    if (star) {
+        try {
+            return decodeURIComponent(star[2].trim());
+        } catch (_) { /* 下の filename= へ */ }
+    }
+    const plain = header.match(/filename\s*=\s*"?([^";]+)"?/i);
+    return plain ? plain[1].trim() : null;
 }
 
 async function importFile(type) {
@@ -287,7 +343,7 @@ async function loadLogs() {
 }
 
 function exportLogs() {
-    window.location.href = '/api/system/export/logs';
+    downloadFile('/api/system/export/logs', 'nmos-controller.log');
 }
 
 // ==========================================
@@ -796,8 +852,8 @@ async function submitSdpEdit() {
 }
 
 function downloadSdp(category, itemId) {
-    window.location.href =
-        `/api/materials/${category}/${itemId}/sdp`;
+    downloadFile(
+        `/api/materials/${category}/${itemId}/sdp`, 'download.sdp');
 }
 
 async function deleteSdpItem(category, itemId, label) {

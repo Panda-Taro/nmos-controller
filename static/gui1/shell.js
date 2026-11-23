@@ -8,6 +8,8 @@
 //   - Node GUI / Systemタブを開いたとき : 各画面の一覧のみ読み直す
 //       （各画面の window.onShellShow() を呼ぶ）
 //   - 表示中のタブはURL末尾（#control / #node / #system）に保持する
+//   - 画面が本来のページ以外（ダウンロード失敗時のエラー表示等）に
+//     置き換わっていた場合は、タブを押したときに本来のページを読み込み直す
 
 const SHELL_TABS = {
     control: { label: 'Control',  src: '/static/gui1/control.html' },
@@ -25,7 +27,9 @@ function getFrame(key) {
 function switchShellTab(key) {
     if (!SHELL_TABS[key]) key = DEFAULT_TAB;
     if (key === currentTab) {
-        focusFrame(getFrame(key));
+        const frame = getFrame(key);
+        if (!isFrameOnOwnPage(key)) loadOwnPage(key);
+        focusFrame(frame);
         return;
     }
 
@@ -46,6 +50,9 @@ function switchShellTab(key) {
     if (!frame.getAttribute('src')) {
         // 初めて開くタブ：ここで読み込む
         frame.src = SHELL_TABS[key].src;
+    } else if (!isFrameOnOwnPage(key)) {
+        // 本来のページ以外に置き換わっている：読み込み直す
+        loadOwnPage(key);
     } else if (key === 'control' && prevTab !== null) {
         // Controlへ戻ったとき：再読み込み
         reloadFrame(frame);
@@ -62,6 +69,25 @@ function switchShellTab(key) {
     document.title = `NMOS Controller - ${SHELL_TABS[key].label}`;
     history.replaceState(null, '', `#${key}`);
     focusFrame(frame);
+}
+
+// iframeが本来のページを表示しているか
+// （読み込み途中の about:blank は「本来のページ」とみなす）
+function isFrameOnOwnPage(key) {
+    const frame = getFrame(key);
+    try {
+        const loc = frame.contentWindow.location;
+        if (loc.href === 'about:blank') return true;
+        const own = new URL(SHELL_TABS[key].src, location.href);
+        return loc.pathname === own.pathname;
+    } catch (e) {
+        return false;
+    }
+}
+
+function loadOwnPage(key) {
+    console.warn(`[Shell] ${key}: 本来のページを読み込み直します`);
+    getFrame(key).src = SHELL_TABS[key].src;
 }
 
 function reloadFrame(frame) {

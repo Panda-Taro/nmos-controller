@@ -58,6 +58,12 @@ let sortableInstances = {};
 let operationMode = 'take';
 let directBusy    = false;   // Directモードで実行中（この間の選択操作は無視）
 
+// Directモードの実行直後は一定時間クリックを受け付けない
+// （ダブルクリック等で同じ切替が二重に送られるのを防ぐ。
+//   Windowsのダブルクリック判定時間の標準値に合わせて0.5秒）
+const DIRECT_COOLDOWN_MS = 500;
+let directCooldownUntil  = 0;
+
 // ドラッグ直後のclickを無視するためのガード
 // （Directモードで並べ替えのドラッグが誤ってTAKEにならないように）
 let isDraggingCard  = false;
@@ -444,8 +450,14 @@ async function fireTriggerByShortcut(shortcut) {
 // ==========================================
 // 選択
 // ==========================================
+// Directモードで実行中・実行直後は選択操作を受け付けない
+function isDirectLocked() {
+    if (operationMode !== 'direct') return false;
+    return directBusy || Date.now() < directCooldownUntil;
+}
+
 function selectSource(material, paneKey) {
-    if (directBusy) return;
+    if (isDirectLocked()) return;
     if (selectedSource &&
         selectedSource.material.resource_id === material.resource_id) {
         selectedSource = null;
@@ -458,7 +470,7 @@ function selectSource(material, paneKey) {
 }
 
 function selectDest(material, paneKey) {
-    if (directBusy) return;
+    if (isDirectLocked()) return;
     if (selectedDest &&
         selectedDest.material.resource_id === material.resource_id) {
         selectedDest = null;
@@ -520,6 +532,7 @@ async function executeDirectTake() {
         await requestTake(srcId, dstId);
     } finally {
         directBusy = false;
+        directCooldownUntil = Date.now() + DIRECT_COOLDOWN_MS;
         document.body.classList.remove('direct-busy');
         // Destは選択したまま、Sourceのみ解除
         // （同じDestに対してSourceを1クリックで次々切り替えられる）
@@ -534,7 +547,7 @@ async function executeDirectTake() {
 function setupPaneBlankClick() {
     ['pane-source', 'pane-dest'].forEach(id => {
         document.getElementById(id)?.addEventListener('click', (e) => {
-            if (operationMode !== 'direct' || directBusy) return;
+            if (operationMode !== 'direct' || isDirectLocked()) return;
             if (e.target.closest('.material-card')) return;
             if (isDragClick()) return;
             if (!selectedSource && !selectedDest) return;
