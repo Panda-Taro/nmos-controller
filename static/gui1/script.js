@@ -1,4 +1,4 @@
-// script.js - GUI① メインコントローラー（行レイアウト版）
+// script.js - Control画面 メインコントローラー（行レイアウト版）
 
 // ==========================================
 // 状態管理
@@ -51,6 +51,19 @@ let currentCardSize = 'medium';
 // SortableJSインスタンス管理
 let sortableInstances = {};
 
+// 操作モード
+//   'take'   : Source/Destを選択後、TAKEボタンで実行（従来動作）
+//   'direct' : Source/Destの両方が揃った時点で即実行
+// 安全のため記憶せず、画面を開くたびにTAKEモードから始める
+let operationMode = 'take';
+let directBusy    = false;   // Directモードで実行中（この間の選択操作は無視）
+
+// ドラッグ直後のclickを無視するためのガード
+// （Directモードで並べ替えのドラッグが誤ってTAKEにならないように）
+let isDraggingCard  = false;
+let lastDragEndAt   = 0;
+const DRAG_CLICK_GUARD_MS = 400;
+
 // ==========================================
 // ペイン定義
 // ==========================================
@@ -92,7 +105,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     connectWebSocket();
     setupKeyboard();
     setupContextMenuClose();
+    setupDragGuard();
+    setupPaneBlankClick();
     updateFmtButtons();
+    updateModeUI();
     renderAll();
     updateTakeButton();
     updateLeaveButton();
@@ -429,6 +445,7 @@ async function fireTriggerByShortcut(shortcut) {
 // 選択
 // ==========================================
 function selectSource(material, paneKey) {
+    if (directBusy) return;
     if (selectedSource &&
         selectedSource.material.resource_id === material.resource_id) {
         selectedSource = null;
@@ -437,9 +454,11 @@ function selectSource(material, paneKey) {
     }
     renderAll();
     updateTakeButton();
+    maybeExecuteDirect();
 }
 
 function selectDest(material, paneKey) {
+    if (directBusy) return;
     if (selectedDest &&
         selectedDest.material.resource_id === material.resource_id) {
         selectedDest = null;
@@ -449,22 +468,124 @@ function selectDest(material, paneKey) {
     renderAll();
     updateTakeButton();
     updateLeaveButton();
+    maybeExecuteDirect();
+}
+
+function clearSelection() {
+    selectedSource = null;
+    selectedDest   = null;
+    updateTakeButton();
+    updateLeaveButton();
+    renderAll();
+}
+
+// ==========================================
+// 操作モード（TAKE / Direct）
+// ==========================================
+function setOperationMode(mode) {
+    if (mode !== 'take' && mode !== 'direct') return;
+    if (mode === operationMode || directBusy) return;
+    operationMode = mode;
+    // モード切替時は選択を解除する
+    // （TAKEモードで両方選択済みのままDirectへ切り替えても即実行しない）
+    updateModeUI();
+    clearSelection();
+}
+
+function updateModeUI() {
+    const isDirect = operationMode === 'direct';
+    document.getElementById('mode-take')
+        ?.classList.toggle('active', !isDirect);
+    document.getElementById('mode-direct')
+        ?.classList.toggle('active', isDirect);
+    document.getElementById('mode-indicator')
+        ?.classList.toggle('direct', isDirect);
+    const name = document.getElementById('mode-name');
+    if (name) name.textContent = isDirect ? 'Direct' : 'TAKE';
+}
+
+// Directモード：Source/Destが揃った時点で即実行
+function maybeExecuteDirect() {
+    if (operationMode !== 'direct' || directBusy) return;
+    if (!selectedSource || !selectedDest) return;
+    executeDirectTake();
+}
+
+async function executeDirectTake() {
+    const srcId = selectedSource.material.resource_id;
+    const dstId = selectedDest.material.resource_id;
+    directBusy = true;
+    document.body.classList.add('direct-busy');
+    try {
+        await requestTake(srcId, dstId);
+    } finally {
+        directBusy = false;
+        document.body.classList.remove('direct-busy');
+        // Destは選択したまま、Sourceのみ解除
+        // （同じDestに対してSourceを1クリックで次々切り替えられる）
+        selectedSource = null;
+        updateTakeButton();
+        updateLeaveButton();
+        renderAll();
+    }
+}
+
+// Directモード：選択中のDest以外の空欄部クリックで選択解除
+function setupPaneBlankClick() {
+    ['pane-source', 'pane-dest'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', (e) => {
+            if (operationMode !== 'direct' || directBusy) return;
+            if (e.target.closest('.material-card')) return;
+            if (isDragClick()) return;
+            if (!selectedSource && !selectedDest) return;
+            clearSelection();
+        });
+    });
+}
+
+// ==========================================
+// ドラッグ直後のclick抑止
+// ==========================================
+function onCardDragStart() {
+    isDraggingCard = true;
+}
+
+function onCardDragEnd() {
+    if (!isDraggingCard) return;
+    isDraggingCard = false;
+    lastDragEndAt  = Date.now();
+}
+
+function isDragClick() {
+    return isDraggingCard ||
+        (Date.now() - lastDragEndAt) < DRAG_CLICK_GUARD_MS;
+}
+
+function setupDragGuard() {
+    // SortableのonEndが呼ばれないケース（ドラッグ中の再描画で
+    // インスタンスが破棄された等）でもフラグが残らないよう、
+    // ドキュメント全体のドラッグ終了・ポインタ解放でも解除する
+    ['dragend', 'drop', 'mouseup', 'pointerup', 'touchend']
+        .forEach(type => {
+            document.addEventListener(type, onCardDragEnd, true);
+        });
 }
 
 // ==========================================
 // TAKE / LEAVE
 // ==========================================
 function updateTakeButton() {
-    document.getElementById('btn-take')
-        ?.classList.toggle('ready', !!(selectedSource && selectedDest));
+    const btn = document.getElementById('btn-take');
+    if (!btn) return;
+    const isDirect = operationMode === 'direct';
+    btn.classList.toggle('ready',
+        !isDirect && !!(selectedSource && selectedDest));
+    // Directモード中はTAKEボタンを押せない（グレー表示）
+    btn.classList.toggle('direct-disabled', isDirect);
+    btn.disabled = isDirect;
 }
 
-async function onTake() {
-    if (!selectedSource || !selectedDest) return;
-    const srcId = selectedSource.material.resource_id;
-    const dstId = selectedDest.material.resource_id;
-    const btn = document.getElementById('btn-take');
-    if (btn) btn.disabled = true;
+async function requestTake(srcId, dstId) {
     try {
         const resp = await fetch('/api/connection/take', {
             method:  'POST',
@@ -480,11 +601,22 @@ async function onTake() {
         }
     } catch (e) {
         console.error('[TAKE] 通信エラー:', e);
+    }
+}
+
+async function onTake() {
+    if (operationMode !== 'take') return;
+    if (!selectedSource || !selectedDest) return;
+    const srcId = selectedSource.material.resource_id;
+    const dstId = selectedDest.material.resource_id;
+    const btn = document.getElementById('btn-take');
+    if (btn) btn.disabled = true;
+    try {
+        await requestTake(srcId, dstId);
     } finally {
-        if (btn) btn.disabled = false;
         selectedSource = null;
         selectedDest   = null;
-        updateTakeButton();
+        updateTakeButton();   // disabled状態もここで復帰
         updateLeaveButton();
         renderAll();
     }
@@ -722,6 +854,8 @@ function buildCard(m, cardIdx, pane, paneKey, rowIdx) {
 
     card.addEventListener('click', (e) => {
         if (e.defaultPrevented) return;
+        // 並べ替えドラッグ直後のclickは選択/TAKEとして扱わない
+        if (isDragClick()) return;
         closeContextMenu();
         if (pane === 'source') selectSource(m, paneKey);
         else                   selectDest(m, paneKey);
@@ -796,7 +930,11 @@ function initSortablesForPane(pane) {
                 animation:  150,
                 ghostClass: 'sortable-ghost',
                 dragClass:  'sortable-drag',
-                onEnd: (evt) => onRowSortableEnd(evt, pane, paneKey, rowIdx)
+                onStart: onCardDragStart,
+                onEnd: (evt) => {
+                    onCardDragEnd();
+                    onRowSortableEnd(evt, pane, paneKey, rowIdx);
+                }
             });
             sortableInstances[instKey] = instance;
         });

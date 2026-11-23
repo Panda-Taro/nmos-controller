@@ -65,21 +65,6 @@ body {
     color: #555;
 }
 
-.btn-close {
-    background: none;
-    border: 1px solid #555;
-    color: #aaa;
-    padding: 3px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 11px;
-    transition: all 0.15s;
-}
-
-.btn-close:hover {
-    background: #3a3a3a;
-    color: #fff;
-}
 
 /* ==========================================
    ステータスLED
@@ -1487,4 +1472,12 @@ body {
     padding: 5px 12px;
     font-size: 12px;
     font-weight: 600;
+}
+
+/* ==========================================
+   枠ページ（/）のタブ内に表示されている場合
+   （枠ページ側と重複するロゴを隠す）
+========================================== */
+.embedded .header-logo {
+    display: none;
 }

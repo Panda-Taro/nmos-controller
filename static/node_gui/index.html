@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Node GUI - NMOS Controller</title>
     <link rel="stylesheet" href="/static/node_gui/style.css">
+    <script>
+        // 枠ページ（/）のタブ内に表示されている場合は、
+        // 枠ページ側と重複するロゴを隠す
+        if (window.self !== window.top) {
+            document.documentElement.classList.add('embedded');
+        }
+    </script>
 </head>
 
 <body>
@@ -22,9 +29,6 @@
             </div>
         </div>
         <div class="header-right">
-            <button class="btn-header" onclick="goBackToGui1()">
-                ← 戻る
-            </button>
         </div>
     </header>
 
@@ -200,7 +204,7 @@
         </div>
         <div class="context-separator"></div>
         <div class="context-item" onclick="contextRegister()">
-            ➕ GUI①の素材として登録
+            ➕ Controlの素材として登録
         </div>
     </div>
 

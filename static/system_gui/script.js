@@ -5,21 +5,24 @@ const TAB_ORDER = [
 ];
 
 // ==========================================
-// GUI①への「戻る」
+// 枠ページでこのタブが表示されたときの処理
+// （Control画面での素材削除・名称変更等を反映するため、
+//   表示中タブの一覧のみ読み直す。開いているタブ・カードの
+//   開閉・入力中のフォーム等はそのまま保持する）
 // ==========================================
-function goBackToGui1() {
-    // GUI①からwindow.open()で開かれたタブであれば、
-    // 元のGUI①タブをリロード・フォーカスしてから自タブを閉じる。
-    // openerが取得できない場合(直接URLを開いた場合等)は
-    // 自タブをGUI①へ遷移させる。
-    if (window.opener && !window.opener.closed) {
-        window.opener.location.reload();
-        window.opener.focus();
-        window.close();
-    } else {
-        location.href = '/';
-    }
-}
+window.onShellShow = function () {
+    const active = document.querySelector('.tab-content.active');
+    const tabId  = active ? active.id.replace('tab-', '') : '';
+
+    // ※ switchTab() は呼ばない（programタブでは番組ロードの
+    //   進捗ポーリングを止めてしまい、systemタブではカードを
+    //   閉じてしまうため）
+    if (tabId === 'program')   loadProgramList();
+    if (tabId === 'gui2')      loadGui2Panels();
+    if (tabId === 'materials') loadSdpList();
+    if (tabId === 'restapi')   loadRestTriggers();
+    // systemタブは一覧を持たないため何もしない
+};
 
 // ==========================================
 // タブ切り替え

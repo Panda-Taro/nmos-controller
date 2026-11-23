@@ -35,21 +35,14 @@ let formatFilter = {
 };
 
 // ==========================================
-// GUI①への「戻る」
+// 枠ページでこのタブが表示されたときの処理
+// （Control画面での素材削除・名称変更を「登録済み」表示に反映する。
+//   絞り込み等の状態は保持したまま、登録済み素材の一覧のみ読み直す）
 // ==========================================
-function goBackToGui1() {
-    // GUI①からwindow.open()で開かれたタブであれば、
-    // 元のGUI①タブをリロード・フォーカスしてから自タブを閉じる。
-    // openerが取得できない場合(直接URLを開いた場合等)は
-    // 自タブをGUI①へ遷移させる。
-    if (window.opener && !window.opener.closed) {
-        window.opener.location.reload();
-        window.opener.focus();
-        window.close();
-    } else {
-        location.href = '/';
-    }
-}
+window.onShellShow = async function () {
+    await loadRegisteredMaterials();
+    renderAll();
+};
 
 // ==========================================
 // WebSocket接続

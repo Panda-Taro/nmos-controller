@@ -83,19 +83,6 @@ body {
     font-size: 12px;
 }
 
-.btn-header {
-    background: #333;
-    color: #d4d4d4;
-    border: 1px solid #555;
-    padding: 6px 14px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-}
-
-.btn-header:hover {
-    background: #444;
-}
 
 /* ==========================================
    メインコンテナ
@@ -752,4 +739,12 @@ body {
     color: #fff;
     border-color: #888;
     box-shadow: 0 0 6px rgba(255,255,255,0.2);
+}
+
+/* ==========================================
+   枠ページ（/）のタブ内に表示されている場合
+   （枠ページ側と重複するロゴを隠す）
+========================================== */
+.embedded .header-logo {
+    display: none;
 }

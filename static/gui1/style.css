@@ -1,4 +1,4 @@
-/* style.css - GUI① メインコントローラー */
+/* style.css - Control画面 メインコントローラー */
 
 * {
     margin: 0;
@@ -1105,4 +1105,79 @@ body.size-small {
 
 .row-drop-zone:hover .drop-zone-hint {
     color: rgba(255,255,255,0.35);
+}
+/* ==========================================
+   枠ページ（タブ）内表示に伴う調整
+   ロゴ・画面切替は枠ページ側にあるため、
+   フィルターボタンがヘッダー左端に来る
+========================================== */
+.header-left > .header-filter:first-child {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+}
+
+/* ==========================================
+   操作モード切替（TAKE / Direct）
+   ※ .size-group / .size-btn の見た目を流用
+========================================== */
+.mode-btn-direct.active {
+    background: #0e3a4f;
+    color: #4fc3f7;
+    border-color: #4fc3f7;
+    box-shadow: 0 0 8px rgba(79,195,247,0.35);
+}
+
+/* ==========================================
+   中央カラム：操作モード表示
+========================================== */
+.take-column {
+    gap: 10px;
+}
+
+.mode-indicator {
+    width: 64px;
+    padding: 6px 2px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #202020;
+    color: #555;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-weight: 700;
+    line-height: 1.1;
+    user-select: none;
+    transition: all 0.2s;
+}
+
+.mode-indicator .mode-name {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+.mode-indicator .mode-suffix {
+    font-size: 10px;
+}
+
+/* Directモード：水色で点灯 */
+.mode-indicator.direct {
+    border-color: #4fc3f7;
+    background: rgba(79,195,247,0.18);
+    color: #4fc3f7;
+    box-shadow: 0 0 14px rgba(79,195,247,0.45);
+}
+
+/* Directモード中のTAKEボタン（押せない・グレー表示） */
+.btn-take.direct-disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Directモードで実行中 */
+body.direct-busy,
+body.direct-busy .material-card {
+    cursor: progress;
 }

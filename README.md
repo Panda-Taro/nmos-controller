@@ -22,6 +22,41 @@ Ubuntu Server上でsystemdサービスとして常時稼働させ、GitHubから
 - **GUI**: `static/gui1`(メイン操作画面)、`static/gui2`(パネル画面)、
   `static/system_gui`(システム設定)、`static/node_gui`(IS-04ノード登録)
 
+### WebGUIの画面構成
+
+`http://<サーバー>/` を開くと、1つのブラウザタブの中で
+「Control」「Node GUI」「System」の3画面をタブで切り替えられます
+(枠ページ `static/gui1/index.html` が各画面をiframeで表示)。
+
+| タブ | 画面 | 備考 |
+|---|---|---|
+| Control | `static/gui1/control.html` | メイン操作画面(Source/DestinationのTAKE/LEAVE) |
+| Node GUI | `/node/` | IS-04リソースの閲覧・素材登録 |
+| System | `/system/` | 番組ファイル・パネル・SDP・RESTトリガー・システム設定 |
+
+- 表示中のタブはURL末尾(`#control` / `#node` / `#system`)に保持され、
+  リロードしても同じタブが開きます。
+- Controlタブに戻ると、Node GUI/Systemでの素材登録・編集を反映するため
+  Control画面を再読み込みします。Node GUI/Systemタブを開いたときは、
+  一覧のみを読み直します(絞り込みや開いているタブ等は保持)。
+- GUI②(パネル画面 `/panel/{panel_id}/`)はタブレット等での単独表示用の
+  ため、従来どおり別ページです。
+
+### Control画面の操作モード
+
+ヘッダー右側の「モード [TAKE][Direct]」で切り替えます。画面を開くたびに
+TAKEモードから始まります(安全のため選択したモードは記憶しません)。
+
+- **TAKEモード**: Source/Destinationを選択(順不同)し、中央のTAKEボタンで実行。
+- **Directモード**: Source/Destinationの両方を選択した時点で即実行
+  (中央のモード表示が水色で点灯し、TAKEボタンは押せなくなります)。
+  実行後はDestinationを選択したままSourceのみ解除されるため、同じ
+  DestinationへSourceを1クリックで次々に切り替えられます。選択中の
+  Destination、またはSource/Destinationペイン内の空欄部をクリックすると
+  選択を解除します。実行中のクリック、およびカード並べ替えのドラッグ
+  直後のクリックは無視します。
+- LEAVEはどちらのモードでも、Destinationのみを選択してLEAVEボタンで実行します。
+
 ## 初回デプロイ手順
 
 対象環境: Ubuntu Server、一般ユーザー実行(root不可)。
